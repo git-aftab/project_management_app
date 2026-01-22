@@ -6,23 +6,24 @@ import { emailVerificationMailgenContent, sendEmail } from "../utils/mail.js";
 
 // Generate Access Token and Refresh Token
 
-const generateAccessAndRefreshTokens = asyncHandler(async (userId) => {
-  const user = await User.findById(userId);
+const generateAccessAndRefreshTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
 
-  if (!user) {
+    user.refreshToken = refreshToken; // adding ref token to DB
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
     throw new ApiError(
       500,
       "Something went Wrong while generating the access token.",
+      error,
     );
   }
-  const accessToken = user.generateAccessToken();
-  const refreshToken = user.generateRefreshToken();
-
-  user.refreshToken = refreshToken; // adding ref token to DB
-  await user.save({ validateBeforeSave: false });
-
-  return { accessToken, refreshToken };
-});
+};
 
 const registerUser = asyncHandler(async (req, res) => {
   const { email, username, password, role } = req.body;
@@ -119,7 +120,11 @@ const loginUser = asyncHandler(async (req, res) => {
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)
     .json(
-      new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken },"User logged in Successfully"),
+      new ApiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "User logged in Successfully",
+      ),
     );
 });
 
