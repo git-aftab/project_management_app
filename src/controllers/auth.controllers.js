@@ -4,6 +4,7 @@ import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { emailVerificationMailgenContent, sendEmail } from "../utils/mail.js";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 // Generate Access Token and Refresh Token
 
@@ -227,7 +228,59 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Mail has been sent to your email ID"));
 });
 
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
 
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized access");
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    );
+
+    // decodedToken?._id  -->WKT this is available as we have planted this while creating
+
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) {
+      throw new ApiError(404, "Invalid refresh token");
+    }
+    // now refreshing the token || Also the token shoulb also be in DB
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(404, "Refresh oken is Expired");
+    }
+    // if all is good, now we are good to generate token
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateAccessAndRefreshTokens(user?._id);
+
+    // updating db
+    user.refreshToken = newRefreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access token refreshed",
+        ),
+      );
+  } catch (error) {
+    throw new ApiError(401, "Invalid refresh Token");
+  }
+});
 
 export {
   registerUser,
@@ -236,4 +289,5 @@ export {
   getCurrentUser,
   verifyEmail,
   resendEmailVerification,
+  refreshAccessToken,
 };
