@@ -9,7 +9,6 @@ import {
 } from "../utils/mail.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { send } from "process";
 
 // Generate Access Token and Refresh Token
 
