@@ -21,6 +21,7 @@ import {
   validateProjectPermission,
 } from "../middlewares/auth.middleware.js";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants";
+import { deleteModel } from "mongoose";
 
 const router = Router();
 
@@ -44,6 +45,24 @@ router
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,
     deleteProject,
+  );
+
+router
+  .route("/:projectId/members/:userId")
+  .put(getProjectMembers)
+  .post(
+    validateProjectPermission([UserRolesEnum.ADMIN]),
+    addMemberToProjectValidator(),
+    validate,
+    addMembersToProject,
+  );
+
+router
+  .route("/:projetId/members/:userId")
+  .put(validateProjectPermission([UserRolesEnum.ADMIN]), updateMemberRole)
+  .delete(
+    validateProjectPermission([UserRolesEnum.ADMIN]),
+    deleteProjectMember,
   );
 
 export default router;
