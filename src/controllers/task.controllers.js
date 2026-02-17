@@ -10,7 +10,20 @@ import { Task, Tasks } from "../models/task.models.js";
 import { subTask } from "../models/subtask.models.js";
 
 const getTasks = asyncHandler(async (req, res) => {
-  // TASk
+  const { projectId } = req.params;
+  const project = Project.findById(projectId);
+
+  if (!project) {
+    throw new ApiError(404, "Project not found");
+  }
+
+  const tasks = await Tasks.find({
+    project: new mongoose.Types.ObjectId(projectId),
+  }).populate("assignedTo", "avatar username fullName");
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, tasks, "Task fetched Successfully"));
 });
 const createTasks = asyncHandler(async (req, res) => {
   const { title, description, assignedTo, status } = req.body;
