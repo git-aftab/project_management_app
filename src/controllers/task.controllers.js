@@ -6,7 +6,7 @@ import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
-import { Task, Tasks } from "../models/task.models.js";
+import { Tasks } from "../models/task.models.js";
 import { subTask } from "../models/subtask.models.js";
 
 const getTasks = asyncHandler(async (req, res) => {
@@ -64,7 +64,71 @@ const UpdateTasks = asyncHandler(async (req, res) => {
   // TASk
 });
 const getTasksById = asyncHandler(async (req, res) => {
-  // TASk
+  const { taskId } = req.params;
+  const task = await Tasks.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(taskId),
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "assignedTo",
+        foreignField: "_id",
+        as: "assignedTo",
+        pipeline: [{ _id: 1, username: 1, fullName: 1, avatar: 1 }],
+      },
+    },
+    {
+      $lookup: {
+        from: "subtasks",
+        localField: "id",
+        foreignField: "task",
+        as: "subtasks",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "createdBy",
+              foreignField: "_id",
+              as: "createdBy",
+              pipeline: [
+                {
+                  $project: {
+                    _id: 1,
+                    username: 1,
+                    fullName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              createdBy: {
+                $arrayElemAt: ["$createdBy", 0],
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        assignedTo: {
+          $arrayElemAt: ["$assignedTo", 0],
+        },
+      },
+    },
+  ]);
+
+  if (!task || task.length === 0) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  return res.status(201).json(201, task[0], "Task fetched successfully");
 });
 const deleteTasks = asyncHandler(async (req, res) => {
   // TASk
