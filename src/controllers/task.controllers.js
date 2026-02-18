@@ -61,7 +61,23 @@ const createTasks = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, task, "Task Created Successfully"));
 });
 const UpdateTasks = asyncHandler(async (req, res) => {
-  // TASk
+  const { taskId } = req.params;
+  const { assignedTo, status, title, description } = req.body;
+
+  const project = await Tasks.findByIdAndUpdate(taskId, {
+    title,
+    description,
+    assignedTo,
+    status,
+  });
+
+  if (!project) {
+    throw new ApiError(404, "Project not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, project, "Task Updated Successfully"));
 });
 const getTasksById = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
@@ -131,16 +147,69 @@ const getTasksById = asyncHandler(async (req, res) => {
   return res.status(201).json(201, task[0], "Task fetched successfully");
 });
 const deleteTasks = asyncHandler(async (req, res) => {
-  // TASk
+  const { taskId } = req.params;
+  const delTask = await Tasks.findByIdAndDelete(taskId);
+
+  if (!delTask) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, delTask, "Task deleted successfully"));
 });
 const createSubTasks = asyncHandler(async (req, res) => {
-  // TASk
+  const { taskId } = req.params;
+  const { title } = req.body;
+
+  const Task = await Tasks.findById(taskId);
+
+  if (!Task) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  const newSubTask = await subTask.create({
+    title,
+    task: taskId,
+    createdBy: req.user._id,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, newSubTask, "Sub-Task Created Successuflly"));
 });
 const updateSubTasks = asyncHandler(async (req, res) => {
-  // TASk
+  const { subTaskId } = req.params;
+  const { title } = req.body;
+
+  const updatedSubTask = await subTask.findByIdAndUpdate(
+    subTaskId,
+    { title },
+    { new: true },
+  );
+
+  if (!updatedSubTask) {
+    throw new ApiError(404, "Sub-Task not found");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updateSubTasks, "Sub-Task updated Successfully"),
+    );
 });
 const deleteSubTasks = asyncHandler(async (req, res) => {
-  // TASk
+  const { subTaskId } = req.params;
+
+  const delSubTask = await subTask.findByIdAndDelete(subTaskId);
+
+  if (!delSubTask) {
+    throw new ApiError(404, "Sub-Task not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, delSubTask, "Sub-Task deleted successfully"));
 });
 
 export {
