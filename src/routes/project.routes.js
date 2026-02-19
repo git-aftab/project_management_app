@@ -20,8 +20,8 @@ import {
   verifyJWT,
   validateProjectPermission,
 } from "../middlewares/auth.middleware.js";
-import { AvailableUserRole, UserRolesEnum } from "../utils/constants";
-import { deleteModel } from "mongoose";
+import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
+// import { deleteModel } from "mongoose";
 
 const router = Router();
 
@@ -35,7 +35,7 @@ router
 
 router
   .route("/:projectId")
-  .get(validateProjectPermission(AvailableUserRole), getProjectById)
+  .get(validateProjectPermission(), getProjectById)
   .put(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,

@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { AvailableTaskStatues, TaskStatusEnum } from "../utils/constants.js";
-import { assign } from "nodemailer/lib/shared";
+// import { assign } from "nodemailer/lib/shared";
 
 const TaskSchema = new Schema(
   {
@@ -20,7 +20,7 @@ const TaskSchema = new Schema(
         ref: "User",
       },
       assignedBy: {
-        Type: Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: "User",
       },
       status: {

@@ -59,5 +59,7 @@ router
   .delete(
     validateProjectPermission(UserRolesEnum.ADMIN),
     validate,
-    updateSubTasks,
+    deleteSubTasks,
   );
+
+export default router
