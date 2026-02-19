@@ -9,7 +9,7 @@ import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 import { Tasks } from "../models/task.models.js";
 import { subTask } from "../models/subtask.models.js";
 
-const getTasks = asyncHandler(async (req, res) => {
+const getTasksById = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   const project = Project.findById(projectId);
 
@@ -79,7 +79,7 @@ const UpdateTasks = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, project, "Task Updated Successfully"));
 });
-const getTasksById = asyncHandler(async (req, res) => {
+const getTasks = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
   const task = await Tasks.aggregate([
     {
