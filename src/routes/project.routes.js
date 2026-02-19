@@ -31,7 +31,7 @@ router.use(verifyJWT);
 router
   .route("/")
   .get(getProjects)
-  .post([...createProjectValidator(), validate, createProject]);
+  .post([...createProjectValidator(), validate], createProject);
 
 router
   .route("/:projectId")

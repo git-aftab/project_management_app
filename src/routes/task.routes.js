@@ -28,10 +28,36 @@ router.use(verifyJWT);
 router
   .route("/:projectId")
   .get(getTasks)
-  .post([...createTasksValidator(), validate, createTasks]);
+  .post(
+    validateProjectPermission([UserRolesEnum.ADMIN]),
+    createTasksValidator(),
+    validate,
+    createTasks,
+  );
 
 router
   .route("/:projectId/t/:taskId")
-  .get(getTasksById)
-  .post([...validateProjectPermission(), validate, UpdateTasks])
-  .delete([])
+  .get(validateProjectPermission(AvailableUserRole), getTasksById)
+  .put(validateProjectPermission([UserRolesEnum.ADMIN]), validate, UpdateTasks)
+  .delete(
+    validateProjectPermission([UserRolesEnum.ADMIN]),
+    validate,
+    deleteTasks,
+  );
+
+router
+  .route("/:projectId/t/:taskId/subtasks")
+  .post(
+    validateProjectPermission(UserRolesEnum.ADMIN),
+    validate,
+    createSubTasks,
+  );
+
+router
+  .route("/:projectId/st/:subTaskId")
+  .put(validateProjectPermission(UserRolesEnum.ADMIN), validate, updateSubTasks)
+  .delete(
+    validateProjectPermission(UserRolesEnum.ADMIN),
+    validate,
+    updateSubTasks,
+  );
