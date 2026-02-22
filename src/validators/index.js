@@ -87,6 +87,10 @@ const createTasksValidator = () => {
   ];
 };
 
+const createNotesValidators = () => {
+  return [body("content").notEmpty().withMessage("Content is required")];
+};
+
 // const deleteTaskValidator
 export {
   userRegisterValidator,
@@ -97,4 +101,5 @@ export {
   createProjectValidator,
   addMemberToProjectValidator,
   createTasksValidator,
+  createNotesValidators
 };
