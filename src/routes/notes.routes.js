@@ -20,11 +20,28 @@ const router = Router();
 
 router.use(verifyJWT);
 
-router.route("/projectId")
-.get(getProjectNotesById)
-.post(
+router
+  .route("/:projectId")
+  .get(validateProjectPermission(), getProjectNotesById)
+  .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     createNotesValidators(),
     validate,
-    createProjectNotes
-)
+    createProjectNotes,
+  );
+
+router
+  .route("/:projectId/n/:noteId")
+  .get(AvailableUserRole(), getProjectNotesDetails)
+  .post(
+    validateProjectPermission([UserRolesEnum.ADMIN]),
+    validate,
+    updateProjectNotes,
+  )
+  .delete(
+    validateProjectPermission([UserRolesEnum.ADMIN]),
+    validate,
+    delProjectNotes,
+  );
+
+export default router;
