@@ -5,7 +5,7 @@ import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
-import { AvailableUserRole, UserRolesEnum } from "../utils/constants";
+import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 
 const getProjectNotesById = asyncHandler(async (req, res) => {
   const { projectId } = req.params;

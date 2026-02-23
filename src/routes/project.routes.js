@@ -35,7 +35,7 @@ router
 
 router
   .route("/:projectId")
-  .get(validateProjectPermission(), getProjectById)
+  .get( getProjectById)
   .put(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,

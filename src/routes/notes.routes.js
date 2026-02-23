@@ -32,7 +32,7 @@ router
 
 router
   .route("/:projectId/n/:noteId")
-  .get(AvailableUserRole(), getProjectNotesDetails)
+  .get(validateProjectPermission(), getProjectNotesDetails)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,
