@@ -130,50 +130,49 @@ const deleteProject = asyncHandler(async (req, res) => {
 
 const getProjectMembers = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const project = await Project.findById(projectId);
 
+  // Check project exists
+  const project = await Project.findById(projectId);
   if (!project) {
     throw new ApiError(404, "Project not found");
   }
 
-  const projectMember = await ProjectMember.aggregate([
+  // Aggregate members
+  const projectMembers = await ProjectMember.aggregate([
     {
+      // Step 1: only members of this project
       $match: {
         project: new mongoose.Types.ObjectId(projectId),
       },
     },
     {
+      // Step 2: join user details
       $lookup: {
         from: "users",
-        localField: "_id",
+        localField: "user",
+        foreignField: "_id",
         as: "user",
-        pipeline: [
-          {
-            $project: {
-              _id: 1,
-              username: 1,
-              fullName: 1,
-              avatar: 1,
-            },
-          },
-        ],
       },
     },
     {
+      // Step 3: user[] → user {}
       $addFields: {
-        user: {
-          $arrayElemAt: ["$user", 0],
-        },
+        user: { $arrayElemAt: ["$user", 0] },
       },
     },
     {
+      // Step 4: shape final response
       $project: {
-        project: 1,
-        user: 1,
+        _id: 0,
         role: 1,
         createdAt: 1,
         updatedAt: 1,
-        _id: 0,
+        user: {
+          _id: 1,
+          username: 1,
+          fullName: 1,
+          avatar: 1,
+        },
       },
     },
   ]);
@@ -183,8 +182,8 @@ const getProjectMembers = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        projectMember,
-        "Project member fetched Successfully",
+        projectMembers,
+        "Project members fetched successfully",
       ),
     );
 });
@@ -198,25 +197,25 @@ const addMembersToProject = asyncHandler(async (req, res) => {
     throw new ApiError(404, "user not found");
   }
 
-  await ProjectMember.findByIdAndUpdate(
+  const projectMember = await ProjectMember.findOneAndUpdate(
     {
-      user: new mongoose.Types.ObjectId(user.id),
-      project: new mongoose.Types.ObjectId(projectId),
+      user: user._id,
+      project: projectId,
     },
     {
-      user: new mongoose.Types.ObjectId(user.id),
-      project: new mongoose.Types.ObjectId(projectId),
       role: role,
     },
     {
       new: true,
-      upsert: true,
+      upsert: true, //this is where the user is added
     },
   );
 
   return res
     .status(200)
-    .json(new ApiResposne(200, {}, "Project member added successfully"));
+    .json(
+      new ApiResponse(200, projectMember, "Project member added successfully"),
+    );
 });
 
 const deleteProjectMember = asyncHandler(async (req, res) => {
@@ -257,8 +256,8 @@ const updateMemberRole = asyncHandler(async (req, res) => {
   }
 
   let projectMember = await ProjectMember.findOne({
-    project: new mongoose.Types.ObjectId(projectId),
-    user: new mongoose.Types.ObjectId(userId),
+    project: projectId,
+    user: userId,
   });
 
   if (!projectMember) {
