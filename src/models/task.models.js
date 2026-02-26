@@ -9,38 +9,45 @@ const TaskSchema = new Schema(
       required: true,
       trim: true,
     },
+
     description: {
-      Project: {
-        type: Schema.Types.ObjectId,
-        ref: "Project",
-        required: true,
-      },
-      assignedTo: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-      assignedBy: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-      status: {
-        type: String,
-        enum: AvailableTaskStatues,
-        default: TaskStatusEnum.TODO,
-      },
-      attachments: {
-        type: [
-          {
-            url: String,
-            mimetype: String,
-            size: Number,
-          },
-        ],
-        default: [],
-      },
+      type: String,
+      required: true,
+      trim: true,
     },
+
+    project: {                     
+      type: Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
+    },
+
+    assignedTo: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    assignedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    status: {
+      type: String,
+      enum: AvailableTaskStatues,
+      default: TaskStatusEnum.TODO,
+    },
+
+    attachments: [
+      {
+        url: String,
+        mimetype: String,
+        size: Number,
+      },
+    ],
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 export const Tasks = mongoose.model("Tasks", TaskSchema);
