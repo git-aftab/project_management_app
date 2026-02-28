@@ -101,5 +101,5 @@ export {
   createProjectValidator,
   addMemberToProjectValidator,
   createTasksValidator,
-  createNotesValidators
+  createNotesValidators,
 };
