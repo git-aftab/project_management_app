@@ -27,7 +27,7 @@ router.use(verifyJWT);
 
 router
   .route("/:projectId")
-  .get(getTasksById)
+  .get(getTasks)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     createTasksValidator(),

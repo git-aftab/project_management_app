@@ -9,10 +9,10 @@ import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 import { Tasks } from "../models/task.models.js";
 import { subTask } from "../models/subtask.models.js";
 
-const getTasksById = asyncHandler(async (req, res) => {
+const getTasks = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const project = Project.findById(projectId);
 
+  const project = await Project.findById(projectId);
   if (!project) {
     throw new ApiError(404, "Project not found");
   }
@@ -23,7 +23,7 @@ const getTasksById = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(201, tasks, "Task fetched Successfully"));
+    .json(new ApiResponse(200, tasks, "Tasks fetched successfully"));
 });
 const createTasks = asyncHandler(async (req, res) => {
   const { title, description, assignedTo, status } = req.body;
@@ -77,7 +77,7 @@ const UpdateTasks = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, project, "Task Updated Successfully"));
 });
-const getTasks = asyncHandler(async (req, res) => {
+const getTasksById = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
   const task = await Tasks.aggregate([
     {
@@ -91,13 +91,15 @@ const getTasks = asyncHandler(async (req, res) => {
         localField: "assignedTo",
         foreignField: "_id",
         as: "assignedTo",
-        pipeline: [{ _id: 1, username: 1, fullName: 1, avatar: 1 }],
+        pipeline: [
+          { $project: { _id: 1, username: 1, fullName: 1, avatar: 1 } },
+        ],
       },
     },
     {
       $lookup: {
         from: "subtasks",
-        localField: "id",
+        localField: "_id",
         foreignField: "task",
         as: "subtasks",
         pipeline: [
@@ -142,7 +144,9 @@ const getTasks = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Task not found");
   }
 
-  return res.status(201).json(201, task[0], "Task fetched successfully");
+  return res
+    .status(201)
+    .json(new ApiResponse(201, task[0], "Task fetched successfully"));
 });
 const deleteTasks = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
