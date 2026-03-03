@@ -88,10 +88,11 @@ const createTasksValidator = () => {
 };
 
 const createNotesValidators = () => {
-  return [body("content").notEmpty().withMessage("Content is required")];
+  return [
+    body("content").notEmpty().withMessage("Content is required")
+  ];
 };
 
-// const deleteTaskValidator
 export {
   userRegisterValidator,
   userLoginValidator,

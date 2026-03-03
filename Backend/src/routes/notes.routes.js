@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  getProjectNotesById,
+  getProjectNotes,
   getProjectNotesDetails,
   createProjectNotes,
   updateProjectNotes,
@@ -22,7 +22,7 @@ router.use(verifyJWT);
 
 router
   .route("/:projectId")
-  .get(validateProjectPermission(), getProjectNotesById)
+  .get(getProjectNotes)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     createNotesValidators(),
@@ -32,8 +32,8 @@ router
 
 router
   .route("/:projectId/n/:noteId")
-  .get(validateProjectPermission(), getProjectNotesDetails)
-  .post(
+  .get(validateProjectPermission(AvailableUserRole), getProjectNotesDetails)
+  .put(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,
     updateProjectNotes,

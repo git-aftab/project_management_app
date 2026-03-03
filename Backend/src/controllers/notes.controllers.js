@@ -4,10 +4,8 @@ import { ProjectNotes } from "../models/note.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import mongoose from "mongoose";
-import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 
-const getProjectNotesById = asyncHandler(async (req, res) => {
+const getProjectNotes = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   //   const {noteContent} = req.body
 
@@ -17,7 +15,7 @@ const getProjectNotesById = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Project not found");
   }
 
-  const notes = ProjectNotes.find({ project: projectId });
+  const notes = await ProjectNotes.find({ project: projectId });
 
   if (!notes) {
     throw new ApiError(404, "Notes not found");
@@ -39,7 +37,7 @@ const createProjectNotes = asyncHandler(async (req, res) => {
   }
 
   const note = await ProjectNotes.create({
-    projectId: projectId,
+    project: projectId,
     content,
     createdBy: req.user._id,
   });
@@ -87,9 +85,9 @@ const updateProjectNotes = asyncHandler(async (req, res) => {
 const delProjectNotes = asyncHandler(async (req, res) => {
   const { noteId, projectId } = req.params;
 
-  const delNote = ProjectNotes.findOneAndDelete({
+  const delNote = await ProjectNotes.findOneAndDelete({
     project: projectId,
-    note: noteId,
+    // note: noteId,
   });
 
   if (!delNote) {
@@ -102,7 +100,7 @@ const delProjectNotes = asyncHandler(async (req, res) => {
 });
 
 export {
-  getProjectNotesById,
+  getProjectNotes,
   createProjectNotes,
   getProjectNotesDetails,
   updateProjectNotes,
