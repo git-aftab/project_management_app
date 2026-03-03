@@ -18,13 +18,14 @@ const getTasks = asyncHandler(async (req, res) => {
   }
 
   const tasks = await Tasks.find({
-    project: projectId,
-  }).populate("assignedTo", "avatar username fullName");
+    project: new mongoose.Types.ObjectId(projectId),
+  });
 
   return res
     .status(200)
     .json(new ApiResponse(200, tasks, "Tasks fetched successfully"));
 });
+
 const createTasks = asyncHandler(async (req, res) => {
   const { title, description, assignedTo, status } = req.body;
   const { projectId } = req.params;
@@ -77,6 +78,7 @@ const UpdateTasks = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, project, "Task Updated Successfully"));
 });
+
 const getTasksById = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
   const task = await Tasks.aggregate([
