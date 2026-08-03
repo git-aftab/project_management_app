@@ -58,8 +58,8 @@ const DashboardPage = () => {
   };
 
   const filteredProjects = projects.filter((p) =>
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    p.project?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.project?.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -114,12 +114,15 @@ const DashboardPage = () => {
         <div className="glass-card" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-              Active Member
+              Total Members
             </span>
             <Users size={22} color="var(--role-member)" />
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: '0.5rem' }}>
-            {user?.username || 'Active'}
+            {projects.reduce((sum, p) => sum + (p.project?.members || 0), 0)}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            across all your projects
           </div>
         </div>
       </div>
@@ -163,64 +166,73 @@ const DashboardPage = () => {
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
           gap: '1.5rem'
         }}>
-          {filteredProjects.map((proj) => (
-            <div
-              key={proj._id}
-              className="glass-card glass-card-interactive"
-              onClick={() => navigate(`/projects/${proj._id}`)}
-              style={{
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '1rem'
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0 }}>
-                    {proj.name}
-                  </h3>
-                  {proj.role && (
-                    <span className={`badge badge-${proj.role.toLowerCase()}`}>
-                      {proj.role.replace('_', ' ')}
-                    </span>
-                  )}
+          {filteredProjects.map((item) => {
+            const proj = item.project;
+            const role = item.role;
+            return (
+              <div
+                key={proj._id}
+                className="glass-card glass-card-interactive"
+                onClick={() => navigate(`/projects/${proj._id}`)}
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '1rem'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0 }}>
+                      {proj.name}
+                    </h3>
+                    {role && (
+                      <span className={`badge badge-${role.toLowerCase()}`}>
+                        {role.replace('_', ' ')}
+                      </span>
+                    )}
+                  </div>
+
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--text-secondary)',
+                    margin: 0,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}>
+                    {proj.description || 'No description provided.'}
+                  </p>
                 </div>
 
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)',
-                  margin: 0,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid var(--border-color)',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-muted)'
                 }}>
-                  {proj.description || 'No description provided.'}
-                </p>
-              </div>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Users size={14} />
+                    {proj.members ?? 0} member{proj.members !== 1 ? 's' : ''}
+                  </span>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid var(--border-color)',
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)'
-              }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Calendar size={14} />
-                  {proj.createdAt ? new Date(proj.createdAt).toLocaleDateString() : 'Active'}
-                </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Calendar size={14} />
+                    {proj.createdAt ? new Date(proj.createdAt).toLocaleDateString() : 'Active'}
+                  </span>
 
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--accent-primary)', fontWeight: '600' }}>
-                  Open Workspace <ArrowRight size={14} />
-                </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--accent-primary)', fontWeight: '600' }}>
+                    Open Workspace <ArrowRight size={14} />
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
