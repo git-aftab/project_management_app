@@ -19,7 +19,7 @@ const getTasks = asyncHandler(async (req, res) => {
 
   const tasks = await Tasks.find({
     project: new mongoose.Types.ObjectId(projectId),
-  });
+  }).populate("assignedTo", "username fullName avatar");
 
   return res
     .status(200)

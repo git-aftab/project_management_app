@@ -4,7 +4,7 @@ import api from '../api/api';
 import { CheckSquare, Square, Plus, Trash2, Paperclip, User, Clock } from 'lucide-react';
 
 const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTaskUpdated, onTaskDeleted }) => {
-  const [status, setStatus] = useState(task?.status || 'TODO');
+  const [status, setStatus] = useState(task?.status || 'todo');
   const [assignedTo, setAssignedTo] = useState(task?.assignedTo?._id || '');
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
@@ -13,7 +13,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
 
   useEffect(() => {
     if (task) {
-      setStatus(task.status || 'TODO');
+      setStatus(task.status || 'todo');
       setAssignedTo(task.assignedTo?._id || '');
       fetchSubtasks();
     }
@@ -24,7 +24,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
     try {
       setLoadingSubtasks(true);
       const res = await api.get(`/tasks/${projectId}/t/${task._id}`);
-      setSubtasks(res.data?.data?.subTasks || []);
+      // backend aggregation returns 'subtasks' (lowercase)
+      setSubtasks(res.data?.data?.subtasks || []);
     } catch (err) {
       console.error('Failed to fetch task subtasks:', err);
     } finally {
@@ -36,8 +37,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
     try {
       setStatus(newStatus);
       await api.put(`/tasks/${projectId}/t/${task._id}`, { status: newStatus });
-      onTaskUpdated();
+      // Don't call onTaskUpdated() here — it would trigger parent refetch
+      // which re-runs useEffect([task]) and resets our local state.
+      // The board will sync when the modal is closed.
     } catch (err) {
+      setStatus(task.status || 'todo'); // revert on error
       setError(err.response?.data?.message || 'Failed to update status');
     }
   };
@@ -45,9 +49,10 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
   const handleAssigneeChange = async (newAssignee) => {
     try {
       setAssignedTo(newAssignee);
-      await api.put(`/tasks/${projectId}/t/${task._id}`, { assignedTo: newAssignee });
-      onTaskUpdated();
+      await api.put(`/tasks/${projectId}/t/${task._id}`, { assignedTo: newAssignee || null });
+      // Same reason as above — don't refresh parent here.
     } catch (err) {
+      setAssignedTo(task.assignedTo?._id || ''); // revert on error
       setError(err.response?.data?.message || 'Failed to update assignee');
     }
   };
@@ -99,10 +104,16 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
     }
   };
 
+  // When the modal closes, sync the board to show latest status/assignee changes
+  const handleClose = () => {
+    onTaskUpdated();
+    onClose();
+  };
+
   if (!task) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={task.title} maxWidth="640px">
+    <Modal isOpen={isOpen} onClose={handleClose} title={task.title} maxWidth="640px">
       {error && <div className="alert alert-error">{error}</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -115,9 +126,9 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
               value={status}
               onChange={(e) => handleStatusChange(e.target.value)}
             >
-              <option value="TODO">Todo</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="DONE">Done</option>
+              <option value="todo">Todo</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
             </select>
           </div>
 
@@ -260,7 +271,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
           <button onClick={handleDeleteTask} className="btn btn-danger btn-sm">
             <Trash2 size={16} /> Delete Task
           </button>
-          <button onClick={onClose} className="btn btn-secondary btn-sm">
+          <button onClick={handleClose} className="btn btn-secondary btn-sm">
             Close
           </button>
         </div>

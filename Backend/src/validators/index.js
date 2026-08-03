@@ -76,7 +76,7 @@ const addMemberToProjectValidator = () => {
 const createTasksValidator = () => {
   return [
     body("title").notEmpty().withMessage("Title is required"),
-    body("description").notEmpty().withMessage("Description is required"),
+    body("description").optional().trim(),
   ];
 };
 

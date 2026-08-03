@@ -34,14 +34,14 @@ const ProjectDetailPage = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
-  const [newTaskStatus, setNewTaskStatus] = useState('TODO');
+  const [newTaskStatus, setNewTaskStatus] = useState('todo');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
   const [creatingTask, setCreatingTask] = useState(false);
 
   // Member Modal
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [memberIdentifier, setMemberIdentifier] = useState('');
-  const [memberRole, setMemberRole] = useState('MEMBER');
+  const [memberRole, setMemberRole] = useState('member');
   const [addingMember, setAddingMember] = useState(false);
 
   // Notes Modal
@@ -50,9 +50,12 @@ const ProjectDetailPage = () => {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [creatingNote, setCreatingNote] = useState(false);
 
-  const fetchProjectData = async () => {
+  // Kanban Drag-and-Drop
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  const fetchProjectData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [projRes, tasksRes, membersRes, notesRes] = await Promise.all([
         api.get(`/projects/${projectId}`),
         api.get(`/tasks/${projectId}`),
@@ -67,7 +70,16 @@ const ProjectDetailPage = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch project workspace data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const fetchTasksOnly = async () => {
+    try {
+      const tasksRes = await api.get(`/tasks/${projectId}`);
+      setTasks(tasksRes.data?.data || []);
+    } catch (err) {
+      console.error('Failed to refresh tasks:', err);
     }
   };
 
@@ -76,6 +88,29 @@ const ProjectDetailPage = () => {
       fetchProjectData();
     }
   }, [projectId]);
+
+  // Kanban DnD: drop a task card into a new status column
+  const handleDrop = async (e, newStatus) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    const taskId = e.dataTransfer.getData('taskId');
+    if (!taskId) return;
+
+    const task = tasks.find((t) => t._id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    // Optimistic UI update
+    setTasks((prev) =>
+      prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
+    );
+
+    try {
+      await api.put(`/tasks/${projectId}/t/${taskId}`, { status: newStatus });
+    } catch (err) {
+      setError('Failed to move task. Please try again.');
+      fetchTasksOnly(); // revert on failure
+    }
+  };
 
   // Create Task Handler
   const handleCreateTask = async (e) => {
@@ -94,7 +129,7 @@ const ProjectDetailPage = () => {
       setIsCreateTaskOpen(false);
       setNewTaskTitle('');
       setNewTaskDesc('');
-      setNewTaskStatus('TODO');
+      setNewTaskStatus('todo');
       setNewTaskAssignee('');
       fetchProjectData();
     } catch (err) {
@@ -119,7 +154,7 @@ const ProjectDetailPage = () => {
 
       setIsAddMemberOpen(false);
       setMemberIdentifier('');
-      setMemberRole('MEMBER');
+      setMemberRole('member');
       fetchProjectData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add project member');
@@ -142,7 +177,7 @@ const ProjectDetailPage = () => {
   // Update Member Role
   const handleUpdateRole = async (userId, newRole) => {
     try {
-      await api.put(`/projects/${projectId}/members/${userId}`, { role: newRole });
+      await api.put(`/projects/${projectId}/members/${userId}`, { newRole: newRole.toLowerCase() });
       fetchProjectData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update member role');
@@ -294,54 +329,84 @@ const ProjectDetailPage = () => {
 
               <div className="kanban-board">
                 {/* Column 1: TODO */}
-                <div className="kanban-column">
+                <div
+                  className="kanban-column"
+                  onDragOver={(e) => { e.preventDefault(); setDragOverColumn('todo'); }}
+                  onDragLeave={() => setDragOverColumn(null)}
+                  onDrop={(e) => handleDrop(e, 'todo')}
+                  style={{
+                    outline: dragOverColumn === 'todo' ? '2px dashed var(--accent-primary)' : 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    transition: 'outline 0.15s ease',
+                  }}
+                >
                   <div className="kanban-header">
                     <span style={{ fontWeight: '600', color: 'var(--status-todo)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--status-todo)' }} />
                       Todo
                     </span>
                     <span className="badge badge-todo">
-                      {tasks.filter((t) => !t.status || t.status === 'TODO').length}
+                      {tasks.filter((t) => !t.status || t.status === 'todo').length}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                    {tasks.filter((t) => !t.status || t.status === 'TODO').map((task) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minHeight: '80px' }}>
+                    {tasks.filter((t) => !t.status || t.status === 'todo').map((task) => (
                       <TaskCard key={task._id} task={task} onClick={setSelectedTask} />
                     ))}
                   </div>
                 </div>
 
                 {/* Column 2: IN_PROGRESS */}
-                <div className="kanban-column">
+                <div
+                  className="kanban-column"
+                  onDragOver={(e) => { e.preventDefault(); setDragOverColumn('in_progress'); }}
+                  onDragLeave={() => setDragOverColumn(null)}
+                  onDrop={(e) => handleDrop(e, 'in_progress')}
+                  style={{
+                    outline: dragOverColumn === 'in_progress' ? '2px dashed var(--accent-primary)' : 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    transition: 'outline 0.15s ease',
+                  }}
+                >
                   <div className="kanban-header">
                     <span style={{ fontWeight: '600', color: 'var(--status-progress)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--status-progress)' }} />
                       In Progress
                     </span>
                     <span className="badge badge-in_progress">
-                      {tasks.filter((t) => t.status === 'IN_PROGRESS').length}
+                      {tasks.filter((t) => t.status === 'in_progress').length}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                    {tasks.filter((t) => t.status === 'IN_PROGRESS').map((task) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minHeight: '80px' }}>
+                    {tasks.filter((t) => t.status === 'in_progress').map((task) => (
                       <TaskCard key={task._id} task={task} onClick={setSelectedTask} />
                     ))}
                   </div>
                 </div>
 
                 {/* Column 3: DONE */}
-                <div className="kanban-column">
+                <div
+                  className="kanban-column"
+                  onDragOver={(e) => { e.preventDefault(); setDragOverColumn('done'); }}
+                  onDragLeave={() => setDragOverColumn(null)}
+                  onDrop={(e) => handleDrop(e, 'done')}
+                  style={{
+                    outline: dragOverColumn === 'done' ? '2px dashed var(--accent-primary)' : 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    transition: 'outline 0.15s ease',
+                  }}
+                >
                   <div className="kanban-header">
                     <span style={{ fontWeight: '600', color: 'var(--status-done)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--status-done)' }} />
                       Done
                     </span>
                     <span className="badge badge-done">
-                      {tasks.filter((t) => t.status === 'DONE').length}
+                      {tasks.filter((t) => t.status === 'done').length}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                    {tasks.filter((t) => t.status === 'DONE').map((task) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minHeight: '80px' }}>
+                    {tasks.filter((t) => t.status === 'done').map((task) => (
                       <TaskCard key={task._id} task={task} onClick={setSelectedTask} />
                     ))}
                   </div>
@@ -404,9 +469,9 @@ const ProjectDetailPage = () => {
                             value={m.role}
                             onChange={(e) => handleUpdateRole(m.user?._id || m._id, e.target.value)}
                           >
-                            <option value="ADMIN">Admin</option>
-                            <option value="PROJECT_ADMIN">Project Admin</option>
-                            <option value="MEMBER">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="project_admin">Project Admin</option>
+                            <option value="member">Member</option>
                           </select>
                         </td>
 
@@ -518,9 +583,9 @@ const ProjectDetailPage = () => {
                 value={newTaskStatus}
                 onChange={(e) => setNewTaskStatus(e.target.value)}
               >
-                <option value="TODO">Todo</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="DONE">Done</option>
+                <option value="todo">Todo</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
               </select>
             </div>
 
@@ -574,9 +639,9 @@ const ProjectDetailPage = () => {
               value={memberRole}
               onChange={(e) => setMemberRole(e.target.value)}
             >
-              <option value="MEMBER">Member</option>
-              <option value="PROJECT_ADMIN">Project Admin</option>
-              <option value="ADMIN">Admin</option>
+              <option value="member">Member</option>
+              <option value="project_admin">Project Admin</option>
+              <option value="admin">Admin</option>
             </select>
           </div>
 
@@ -637,10 +702,10 @@ const ProjectDetailPage = () => {
           task={selectedTask}
           projectId={projectId}
           members={members}
-          onTaskUpdated={fetchProjectData}
+          onTaskUpdated={() => fetchProjectData(true)}
           onTaskDeleted={() => {
             setSelectedTask(null);
-            fetchProjectData();
+            fetchProjectData(true);
           }}
         />
       )}

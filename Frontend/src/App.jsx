@@ -14,6 +14,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import ProfilePage from './pages/ProfilePage';
+import GuidePage from './pages/GuidePage';
 
 // Protected Route Guard
 const ProtectedLayout = () => {
@@ -107,6 +108,7 @@ function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/guide" element={<GuidePage />} />
             </Route>
 
             {/* Fallback Catch-all */}
