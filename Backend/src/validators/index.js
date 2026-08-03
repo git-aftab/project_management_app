@@ -31,7 +31,6 @@ const userRegisterValidator = () => {
 
 const userLoginValidator = () => {
   return [
-    body("email").optional().isEmail().withMessage("Email is invalid"),
     body("password").notEmpty().withMessage("Password is required"),
   ];
 };
@@ -66,12 +65,6 @@ const createProjectValidator = () => {
 
 const addMemberToProjectValidator = () => {
   return [
-    body("email")
-      .trim()
-      .notEmpty()
-      .withMessage("Email is required")
-      .isEmail()
-      .withMessage("Email is invalid"),
     body("role")
       .notEmpty()
       .withMessage("Role is required")

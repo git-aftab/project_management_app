@@ -1,6 +1,9 @@
 import { User } from "../models/user.model.js";
 import { Project } from "../models/project.models.js";
 import { ProjectMember } from "../models/projectmember.models.js";
+import { Tasks } from "../models/task.models.js";
+import { subTask } from "../models/subtask.models.js";
+import { ProjectNotes } from "../models/note.models.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -107,7 +110,7 @@ const updateProject = asyncHandler(async (req, res) => {
   );
 
   if (!project) {
-    throw new ApiError(404, "Project now found");
+    throw new ApiError(404, "Project not found");
   }
 
   return res
@@ -122,6 +125,16 @@ const deleteProject = asyncHandler(async (req, res) => {
   if (!delProject) {
     throw new ApiError(404, "Project not found");
   }
+
+  // Cleanup project cascade references
+  await ProjectMember.deleteMany({ project: projectId });
+  const tasks = await Tasks.find({ project: projectId });
+  const taskIds = tasks.map((t) => t._id);
+  if (taskIds.length > 0) {
+    await subTask.deleteMany({ task: { $in: taskIds } });
+  }
+  await Tasks.deleteMany({ project: projectId });
+  await ProjectNotes.deleteMany({ project: projectId });
 
   return res
     .status(200)
@@ -191,10 +204,19 @@ const getProjectMembers = asyncHandler(async (req, res) => {
 const addMembersToProject = asyncHandler(async (req, res) => {
   const { email, username, role } = req.body;
   const { projectId } = req.params;
-  const user = await User.findOne({ email });
+  
+  const searchCriteria = [];
+  if (email) searchCriteria.push({ email });
+  if (username) searchCriteria.push({ username });
+
+  if (searchCriteria.length === 0) {
+    throw new ApiError(400, "Email or username is required to add a member");
+  }
+
+  const user = await User.findOne({ $or: searchCriteria });
 
   if (!user) {
-    throw new ApiError(404, "user not found");
+    throw new ApiError(404, "User not found");
   }
 
   const projectMember = await ProjectMember.findOneAndUpdate(

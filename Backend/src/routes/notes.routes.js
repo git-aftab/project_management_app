@@ -22,7 +22,7 @@ router.use(verifyJWT);
 
 router
   .route("/:projectId")
-  .get(getProjectNotes)
+  .get(validateProjectPermission(AvailableUserRole), getProjectNotes)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     createNotesValidators(),

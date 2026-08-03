@@ -86,8 +86,8 @@ const delProjectNotes = asyncHandler(async (req, res) => {
   const { noteId, projectId } = req.params;
 
   const delNote = await ProjectNotes.findOneAndDelete({
+    _id: noteId,
     project: projectId,
-    // note: noteId,
   });
 
   if (!delNote) {

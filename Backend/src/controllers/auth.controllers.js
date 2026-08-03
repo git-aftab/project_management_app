@@ -62,9 +62,9 @@ const registerUser = asyncHandler(async (req, res) => {
     email: user?.email,
     subject: "please verify you eamil",
     mailgenContent: emailVerificationMailgenContent(
-      (await user).username,
+      user.username,
       // generating a dynamic link => localhost or hosted
-      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`,
+      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
     ),
   });
 
@@ -88,16 +88,19 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password, username } = req.body;
+  const { email, password, username, loginIdentifier } = req.body;
 
-  if (!username || !email) {
-    throw new ApiError(400, "username or email is required");
+  const identifier = loginIdentifier || email || username;
+  if (!identifier) {
+    throw new ApiError(400, "Username or email is required");
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({
+    $or: [{ email: identifier }, { username: identifier }],
+  });
 
   if (!user) {
-    throw new ApiError(400, "user does not exists");
+    throw new ApiError(400, "User does not exist");
   }
 
   const isPassValid = await user.isPasswordCorrect(password);
@@ -110,9 +113,9 @@ const loginUser = asyncHandler(async (req, res) => {
     user._id,
   );
 
-  // not sending the unnecessary fields to the client || user may be on mobile
+  // not sending unnecessary fields to the client
   const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken -emailVerification -emailVerificationExpiry",
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
   );
 
   // cookeis require opitons
@@ -221,9 +224,9 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
     email: user?.email,
     subject: "please verify you eamil",
     mailgenContent: emailVerificationMailgenContent(
-      (await user).username,
+      user.username,
       // generating a dynamic link => localhost or hosted
-      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`,
+      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
     ),
   });
 
@@ -234,7 +237,7 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+    req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized access");
@@ -296,7 +299,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
   }
 
   const { unHashedToken, hashedToken, tokenExpiry } =
-    user.generateAccessAndRefreshTokens();
+    user.generateTemporaryToken();
 
   user.forgotPasswordToken = hashedToken;
   user.forgotPasswordTokenExpiry = tokenExpiry;
@@ -338,7 +341,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new ApiError(489, "Token invalid or expired");
+    throw new ApiError(400, "Token invalid or expired");
   }
 
   user.forgotPasswordToken = undefined;
@@ -347,10 +350,9 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
   user.password = newPassword;
   await user.save({ validateBeforeSave: false });
 
-  return res.status(
-    200,
-    new ApiResponse(200, {}, "Password reset Successfully"),
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password reset Successfully"));
 });
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {

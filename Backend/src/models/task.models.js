@@ -51,4 +51,4 @@ const TaskSchema = new Schema(
   { timestamps: true },
 );
 
-export const Tasks = mongoose.model("Tasks", TaskSchema);
+export const Tasks = mongoose.model("Task", TaskSchema);

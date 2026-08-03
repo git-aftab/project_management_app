@@ -39,7 +39,7 @@ const createTasks = asyncHandler(async (req, res) => {
 
   const attachments = files.map((file) => {
     return {
-      url: `${process.env.SERVER_URL}/images/${file.originalname}`,
+      url: `${process.env.SERVER_URL || ""}/images/${file.filename || file.originalname}`,
       mimetype: file.mimetype,
       size: file.size,
     };
@@ -49,9 +49,9 @@ const createTasks = asyncHandler(async (req, res) => {
     title,
     description,
     project: projectId,
-    assignedTo: assignedTo || new mongoose.Types.ObjectId(assignedTo),
+    assignedTo: assignedTo ? new mongoose.Types.ObjectId(assignedTo) : null,
     status,
-    assingedBy: req.user._id || new mongoose.Types.ObjectId(req.user._id),
+    assignedBy: req.user._id,
     attachments,
   });
 
@@ -63,20 +63,25 @@ const UpdateTasks = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
   const { assignedTo, status, title, description } = req.body;
 
-  const project = await Tasks.findByIdAndUpdate(taskId, {
-    title,
-    description,
-    assignedTo,
-    status,
-  });
+  const updateFields = {};
+  if (title !== undefined) updateFields.title = title;
+  if (description !== undefined) updateFields.description = description;
+  if (assignedTo !== undefined) updateFields.assignedTo = assignedTo ? new mongoose.Types.ObjectId(assignedTo) : null;
+  if (status !== undefined) updateFields.status = status;
 
-  if (!project) {
-    throw new ApiError(404, "Project not found");
+  const updatedTask = await Tasks.findByIdAndUpdate(
+    taskId,
+    updateFields,
+    { new: true },
+  );
+
+  if (!updatedTask) {
+    throw new ApiError(404, "Task not found");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, project, "Task Updated Successfully"));
+    .json(new ApiResponse(200, updatedTask, "Task Updated Successfully"));
 });
 
 const getTasksById = asyncHandler(async (req, res) => {
@@ -158,6 +163,8 @@ const deleteTasks = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Task not found");
   }
 
+  await subTask.deleteMany({ task: taskId });
+
   return res
     .status(200)
     .json(new ApiResponse(200, delTask, "Task deleted successfully"));
@@ -184,11 +191,15 @@ const createSubTasks = asyncHandler(async (req, res) => {
 });
 const updateSubTasks = asyncHandler(async (req, res) => {
   const { subTaskId } = req.params;
-  const { title } = req.body;
+  const { title, isCompleted } = req.body;
+
+  const updateFields = {};
+  if (title !== undefined) updateFields.title = title;
+  if (isCompleted !== undefined) updateFields.isCompleted = isCompleted;
 
   const updatedSubTask = await subTask.findByIdAndUpdate(
     subTaskId,
-    { title },
+    updateFields,
     { new: true },
   );
 
@@ -199,7 +210,7 @@ const updateSubTasks = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(200, updateSubTasks, "Sub-Task updated Successfully"),
+      new ApiResponse(200, updatedSubTask, "Sub-Task updated Successfully"),
     );
 });
 const deleteSubTasks = asyncHandler(async (req, res) => {
