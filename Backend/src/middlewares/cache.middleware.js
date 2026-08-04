@@ -1,10 +1,11 @@
 import { getCache, setCache } from "../utils/cache.js";
 import { ApiResponse } from "../utils/api-response.js";
+import logger from "../logger/logger.js";
 
 export const cacheMiddleware = (keyGenerator, ttl = 3600) => {
   return async (req, res, next) => {
     try {
-      console.log("Cache middleware invoked");
+      logger.info("Cache middleware invoked");
       const key = keyGenerator(req);
 
       if (!key) {
@@ -12,15 +13,15 @@ export const cacheMiddleware = (keyGenerator, ttl = 3600) => {
       }
 
       const cachedData = await getCache(key);
-      console.log(`Cache middleware: key=${key}, cachedData=${cachedData ? "found" : "not found"}`);
+      logger.info(`Cache middleware: key=${key}, cachedData=${cachedData ? "found" : "not found"}`);
 
       if (cachedData) {
-        console.log(`Cache hit for key: ${key}`);
+        logger.info(`Cache hit for key: ${key}`);
         return res
           .status(200)
           .json(new ApiResponse(200, cachedData, "Data retrieved from cache"));
       }
-      console.log(`Cache miss for key: ${key}`);
+      logger.info(`Cache miss for key: ${key}`);
 
       const originalJson = res.json.bind(res);
 
@@ -33,7 +34,7 @@ export const cacheMiddleware = (keyGenerator, ttl = 3600) => {
 
       next();
     } catch (error) {
-      console.error("Error in cache middleware:", error);
+      logger.error("Error in cache middleware:", error);
       return next();
     }
   };
