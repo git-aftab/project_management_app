@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, CheckCircle } from 'lucide-react';
+import { LayoutDashboard, CheckCircle, Camera, User } from 'lucide-react';
 
 const RegisterPage = () => {
   const [username, setUsername] = useState('');
@@ -9,12 +9,26 @@ const RegisterPage = () => {
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const avatarInputRef = useRef(null);
   const { register } = useAuth();
-  const navigate = useNavigate();
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 1_000_000) {
+      setError('Avatar must be under 1 MB');
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +42,7 @@ const RegisterPage = () => {
     setLoading(true);
 
     try {
-      await register(username, email, fullName, password);
+      await register(username, email, fullName, password, avatarFile);
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
@@ -46,7 +60,7 @@ const RegisterPage = () => {
       padding: '1.5rem',
       backgroundColor: 'var(--bg-main)'
     }}>
-      <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem' }}>
+      <div className="glass-card" style={{ width: '100%', maxWidth: '460px', padding: '2.5rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{
             width: '48px',
@@ -87,6 +101,56 @@ const RegisterPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            {/* Avatar Upload — Optional */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div
+                onClick={() => avatarInputRef.current?.click()}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--bg-main)',
+                  border: '2px dashed var(--border-color-strong)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  transition: 'border-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color-strong)'}
+              >
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="avatar preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <User size={28} color="var(--text-muted)" />
+                )}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'rgba(0,0,0,0.35)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: 0, transition: 'opacity 0.15s',
+                }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
+                >
+                  <Camera size={20} color="#fff" />
+                </div>
+              </div>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                Profile photo (optional, max 1 MB)
+              </span>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleAvatarChange}
+              />
+            </div>
+
             <div className="form-group">
               <label className="form-label">Username</label>
               <input
@@ -94,7 +158,7 @@ const RegisterPage = () => {
                 className="input-field"
                 placeholder="johndoe"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
                 required
               />
             </div>
@@ -119,7 +183,6 @@ const RegisterPage = () => {
                 placeholder="John Doe"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                required
               />
             </div>
 

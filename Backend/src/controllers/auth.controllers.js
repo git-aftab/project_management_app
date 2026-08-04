@@ -32,7 +32,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
+  const { email, username, fullName, password } = req.body;
 
   const existingUser = await User.findOne({
     $or: [{ username }, { email }],
@@ -42,14 +42,21 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists", []);
   }
 
+  // Handle optional avatar upload
+  const avatarLocalPath = req.file?.path;
+  const avatarUrl = avatarLocalPath
+    ? `${process.env.SERVER_URL}/images/${req.file.filename}`
+    : undefined;
+
   const user = await User.create({
     email,
     password,
     username,
+    fullName,
     isEmailVerified: false,
+    ...(avatarUrl && { avatar: { url: avatarUrl, localPath: avatarLocalPath } }),
   });
 
-  // After the user is created, Generate the temp_ token
   const { unHashedToken, hashedToken, tokenExpiry } =
     user.generateTemporaryToken();
 
@@ -58,13 +65,15 @@ const registerUser = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
+  // Use CLIENT_URL so the link opens the frontend, not the backend
+  const verificationLink = `${process.env.CLIENT_URL}/verify-email/${unHashedToken}`;
+
   await sendEmail({
     email: user?.email,
-    subject: "please verify you eamil",
+    subject: "Please verify your email",
     mailgenContent: emailVerificationMailgenContent(
       user.username,
-      // generating a dynamic link => localhost or hosted
-      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
+      verificationLink,
     ),
   });
 
@@ -220,13 +229,15 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
+  // Use CLIENT_URL so the link opens the frontend
+  const verificationLink = `${process.env.CLIENT_URL}/verify-email/${unHashedToken}`;
+
   await sendEmail({
     email: user?.email,
-    subject: "please verify you eamil",
+    subject: "Please verify your email",
     mailgenContent: emailVerificationMailgenContent(
       user.username,
-      // generating a dynamic link => localhost or hosted
-      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
+      verificationLink,
     ),
   });
 
@@ -372,6 +383,33 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password changed Successfully"));
 });
 
+const updateAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, "Avatar image is required");
+  }
+
+  const avatarUrl = `${process.env.SERVER_URL}/images/${req.file.filename}`;
+  const avatarLocalPath = req.file.path;
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        avatar: { url: avatarUrl, localPath: avatarLocalPath },
+      },
+    },
+    { new: true },
+  ).select("-password -refreshToken -emailVerificationToken -emailVerificationExpiry");
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Avatar updated successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -383,4 +421,5 @@ export {
   forgotPasswordRequest,
   resetForgotPassword,
   changeCurrentPassword,
+  updateAvatar,
 };

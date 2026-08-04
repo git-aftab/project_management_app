@@ -78,10 +78,11 @@ const Navbar = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: '600',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                overflow: 'hidden',
               }}>
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.username} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                {user.avatar?.url && !user.avatar.url.includes('placehold.co') ? (
+                  <img src={user.avatar.url} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   user.username?.[0]?.toUpperCase() || <User size={18} />
                 )}

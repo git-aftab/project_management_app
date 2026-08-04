@@ -10,6 +10,7 @@ import {
   resendEmailVerification,
   resetForgotPassword,
   verifyEmail,
+  updateAvatar,
 } from "../controllers/auth.controllers.js";
 import { validate } from "../middlewares/validator.middleware.js";
 import {
@@ -19,15 +20,15 @@ import {
   userRegisterValidator,
   userResetForgotPasswordValidator,
 } from "../validators/index.js";
-
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
 // Unsecure Routes --> These doesn't require JWT
 router
   .route("/register")
-  .post([...userRegisterValidator(), validate], registerUser);
+  .post(upload.single("avatar"), [...userRegisterValidator(), validate], registerUser);
 
 router.route("/login").post([...userLoginValidator(), validate], loginUser);
 
@@ -57,5 +58,10 @@ router
 router
   .route("/resend-email-verification")
   .post(verifyJWT, resendEmailVerification);
+
+// Update avatar (secured)
+router
+  .route("/update-avatar")
+  .post(verifyJWT, upload.single("avatar"), updateAvatar);
 
 export default router;
