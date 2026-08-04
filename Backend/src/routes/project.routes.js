@@ -20,6 +20,7 @@ import {
   verifyJWT,
   validateProjectPermission,
 } from "../middlewares/auth.middleware.js";
+import { cacheMiddleware } from "../middlewares/cache.middleware.js";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 // import { deleteModel } from "mongoose";
 
@@ -30,12 +31,19 @@ router.use(verifyJWT);
 
 router
   .route("/")
-  .get(getProjects)
+  .get(
+    cacheMiddleware((req) => `projects:${req.user.id}`),
+    getProjects,
+  )
   .post([...createProjectValidator(), validate], createProject);
 
 router
   .route("/:projectId")
-  .get(validateProjectPermission(AvailableUserRole), getProjectById)
+  .get(
+    cacheMiddleware((req) => `projectId:${req.params.projectId}`),
+    validateProjectPermission(AvailableUserRole),
+    getProjectById,
+  )
   .put(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,
