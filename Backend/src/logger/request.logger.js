@@ -10,6 +10,7 @@ const reqLogger = pinoHttp({
 
   customProps(req, res) {
     return {
+      requestId: req.reqId,
       userId: req.user?._id,
       responseTime: res.responseTime,
     };

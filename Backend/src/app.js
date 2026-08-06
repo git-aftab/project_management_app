@@ -3,11 +3,13 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import reqLogger from "./logger/request.logger.js";
 import helmet from "helmet";
+import { reqId } from "./middlewares/reqId.middleware.js";
 
 const app = express();
 
 
 // Basic Configuration
+app.use(reqId)
 app.use(helmet());
 app.use(reqLogger);
 app.use(express.json({ limit: "16kb" }));
