@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import api from '../api/api';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useProjects, useCreateProject } from '../hooks/useProject';
 import Modal from '../components/Modal';
 import { FolderKanban, Plus, Search, Users, Calendar, ArrowRight, Layers } from 'lucide-react';
 
@@ -9,58 +9,36 @@ const DashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const { data: projects = [], isLoading: loading, error: queryError } = useProjects();
+  const createProject = useCreateProject();
 
-  // Modal State
+  const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/projects');
-      setProjects(res.data?.data?.projects || res.data?.data || []);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch projects');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
 
-    try {
-      setCreating(true);
-      const res = await api.post('/projects', {
-        name: newProjectName,
-        description: newProjectDesc,
-      });
-      setIsModalOpen(false);
-      setNewProjectName('');
-      setNewProjectDesc('');
-      fetchProjects();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create project');
-    } finally {
-      setCreating(false);
-    }
+    createProject.mutate(
+      { name: newProjectName, description: newProjectDesc },
+      {
+        onSuccess: () => {
+          setIsModalOpen(false);
+          setNewProjectName('');
+          setNewProjectDesc('');
+        },
+      }
+    );
   };
 
   const filteredProjects = projects.filter((p) =>
     p.project?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.project?.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const error = queryError?.response?.data?.message || queryError?.message || '';
 
   return (
     <div className="page-container">
@@ -91,6 +69,11 @@ const DashboardPage = () => {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+      {createProject.isError && (
+        <div className="alert alert-error">
+          {createProject.error?.response?.data?.message || 'Failed to create project'}
+        </div>
+      )}
 
       {/* Quick Stats Grid */}
       <div style={{
@@ -277,9 +260,9 @@ const DashboardPage = () => {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={creating}
+              disabled={createProject.isPending}
             >
-              {creating ? <div className="spinner" /> : 'Create Project'}
+              {createProject.isPending ? <div className="spinner" /> : 'Create Project'}
             </button>
           </div>
         </form>

@@ -1,110 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
-import api from '../api/api';
-import { CheckSquare, Square, Plus, Trash2, Paperclip, User, Clock } from 'lucide-react';
+import { useUpdateTask, useDeleteTask } from '../hooks/useTasks';
+import { useSubtasks, useAddSubtask, useToggleSubtask, useDeleteSubtask } from '../hooks/useSubtasks';
+import { CheckSquare, Square, Plus, Trash2, Paperclip } from 'lucide-react';
 
 const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTaskUpdated, onTaskDeleted }) => {
   const [status, setStatus] = useState(task?.status || 'todo');
   const [assignedTo, setAssignedTo] = useState(task?.assignedTo?._id || '');
-  const [subtasks, setSubtasks] = useState([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
-  const [loadingSubtasks, setLoadingSubtasks] = useState(false);
   const [error, setError] = useState('');
 
+  // Sync local UI state when a different task is opened
   useEffect(() => {
     if (task) {
       setStatus(task.status || 'todo');
       setAssignedTo(task.assignedTo?._id || '');
-      fetchSubtasks();
+      setError('');
     }
-  }, [task]);
+  }, [task?._id]);
 
-  const fetchSubtasks = async () => {
-    if (!task?._id || !projectId) return;
-    try {
-      setLoadingSubtasks(true);
-      const res = await api.get(`/tasks/${projectId}/t/${task._id}`);
-      // backend aggregation returns 'subtasks' (lowercase)
-      setSubtasks(res.data?.data?.subtasks || []);
-    } catch (err) {
-      console.error('Failed to fetch task subtasks:', err);
-    } finally {
-      setLoadingSubtasks(false);
-    }
+  // ─── Queries ────────────────────────────────────────────────────────────────
+  const { data: subtasks = [], isLoading: loadingSubtasks } = useSubtasks(projectId, task?._id);
+
+  // ─── Mutations ──────────────────────────────────────────────────────────────
+  const updateTask = useUpdateTask(projectId);
+  const deleteTask = useDeleteTask(projectId);
+  const addSubtask = useAddSubtask(projectId, task?._id);
+  const toggleSubtask = useToggleSubtask(projectId, task?._id);
+  const deleteSubtask = useDeleteSubtask(projectId, task?._id);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+
+  const handleStatusChange = (newStatus) => {
+    setStatus(newStatus); // instant local feedback
+    updateTask.mutate(
+      { taskId: task._id, data: { status: newStatus } },
+      { onError: () => setStatus(task.status || 'todo') }
+    );
   };
 
-  const handleStatusChange = async (newStatus) => {
-    try {
-      setStatus(newStatus);
-      await api.put(`/tasks/${projectId}/t/${task._id}`, { status: newStatus });
-      // Don't call onTaskUpdated() here — it would trigger parent refetch
-      // which re-runs useEffect([task]) and resets our local state.
-      // The board will sync when the modal is closed.
-    } catch (err) {
-      setStatus(task.status || 'todo'); // revert on error
-      setError(err.response?.data?.message || 'Failed to update status');
-    }
+  const handleAssigneeChange = (newAssignee) => {
+    setAssignedTo(newAssignee);
+    updateTask.mutate(
+      { taskId: task._id, data: { assignedTo: newAssignee || null } },
+      { onError: () => setAssignedTo(task.assignedTo?._id || '') }
+    );
   };
 
-  const handleAssigneeChange = async (newAssignee) => {
-    try {
-      setAssignedTo(newAssignee);
-      await api.put(`/tasks/${projectId}/t/${task._id}`, { assignedTo: newAssignee || null });
-      // Same reason as above — don't refresh parent here.
-    } catch (err) {
-      setAssignedTo(task.assignedTo?._id || ''); // revert on error
-      setError(err.response?.data?.message || 'Failed to update assignee');
-    }
-  };
-
-  const handleAddSubtask = async (e) => {
+  const handleAddSubtask = (e) => {
     e.preventDefault();
     if (!newSubtaskTitle.trim()) return;
-    try {
-      const res = await api.post(`/tasks/${projectId}/t/${task._id}/subtasks`, {
-        title: newSubtaskTitle,
-      });
-      setSubtasks((prev) => [...prev, res.data.data]);
-      setNewSubtaskTitle('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add subtask');
-    }
+    addSubtask.mutate(
+      { title: newSubtaskTitle },
+      {
+        onSuccess: () => setNewSubtaskTitle(''),
+        onError: (err) => setError(err.response?.data?.message || 'Failed to add subtask'),
+      }
+    );
   };
 
-  const handleToggleSubtask = async (subTaskId, currentCompleted) => {
-    try {
-      const res = await api.put(`/tasks/${projectId}/st/${subTaskId}`, {
-        isCompleted: !currentCompleted,
-      });
-      setSubtasks((prev) =>
-        prev.map((st) => (st._id === subTaskId ? res.data.data : st))
-      );
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update subtask');
-    }
+  const handleToggleSubtask = (subTaskId, currentCompleted) => {
+    toggleSubtask.mutate(
+      { subTaskId, isCompleted: !currentCompleted },
+      { onError: (err) => setError(err.response?.data?.message || 'Failed to update subtask') }
+    );
   };
 
-  const handleDeleteSubtask = async (subTaskId) => {
-    try {
-      await api.delete(`/tasks/${projectId}/st/${subTaskId}`);
-      setSubtasks((prev) => prev.filter((st) => st._id !== subTaskId));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete subtask');
-    }
+  const handleDeleteSubtask = (subTaskId) => {
+    deleteSubtask.mutate(subTaskId, {
+      onError: (err) => setError(err.response?.data?.message || 'Failed to delete subtask'),
+    });
   };
 
-  const handleDeleteTask = async () => {
+  const handleDeleteTask = () => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
-    try {
-      await api.delete(`/tasks/${projectId}/t/${task._id}`);
-      onTaskDeleted(task._id);
-      onClose();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete task');
-    }
+    deleteTask.mutate(task._id, {
+      onSuccess: () => {
+        onTaskDeleted(task._id);
+        onClose();
+      },
+      onError: (err) => setError(err.response?.data?.message || 'Failed to delete task'),
+    });
   };
 
-  // When the modal closes, sync the board to show latest status/assignee changes
+  // When closing, notify parent so it can clear selectedTask
   const handleClose = () => {
     onTaskUpdated();
     onClose();
@@ -176,47 +155,53 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
             </h4>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-            {subtasks.map((st) => (
-              <div
-                key={st._id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.6rem 0.8rem',
-                  backgroundColor: 'var(--bg-main)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)'
-                }}
-              >
+          {loadingSubtasks ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}>
+              <div className="spinner" style={{ width: '20px', height: '20px' }} />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+              {subtasks.map((st) => (
                 <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                  onClick={() => handleToggleSubtask(st._id, st.isCompleted)}
+                  key={st._id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.6rem 0.8rem',
+                    backgroundColor: 'var(--bg-main)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-color)'
+                  }}
                 >
-                  {st.isCompleted ? (
-                    <CheckSquare size={18} color="var(--status-done)" />
-                  ) : (
-                    <Square size={18} color="var(--text-muted)" />
-                  )}
-                  <span style={{
-                    fontSize: '0.9rem',
-                    color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)',
-                    textDecoration: st.isCompleted ? 'line-through' : 'none'
-                  }}>
-                    {st.title}
-                  </span>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
+                    onClick={() => handleToggleSubtask(st._id, st.isCompleted)}
+                  >
+                    {st.isCompleted ? (
+                      <CheckSquare size={18} color="var(--status-done)" />
+                    ) : (
+                      <Square size={18} color="var(--text-muted)" />
+                    )}
+                    <span style={{
+                      fontSize: '0.9rem',
+                      color: st.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)',
+                      textDecoration: st.isCompleted ? 'line-through' : 'none'
+                    }}>
+                      {st.title}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSubtask(st._id)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: '#ef4444', padding: '0.2rem' }}
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleDeleteSubtask(st._id)}
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: '#ef4444', padding: '0.2rem' }}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Add Subtask Form */}
           <form onSubmit={handleAddSubtask} style={{ display: 'flex', gap: '0.5rem' }}>
@@ -227,8 +212,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
               value={newSubtaskTitle}
               onChange={(e) => setNewSubtaskTitle(e.target.value)}
             />
-            <button type="submit" className="btn btn-secondary btn-sm">
-              <Plus size={16} /> Add
+            <button type="submit" className="btn btn-secondary btn-sm" disabled={addSubtask.isPending}>
+              {addSubtask.isPending ? <div className="spinner" style={{ width: '14px', height: '14px' }} /> : <><Plus size={16} /> Add</>}
             </button>
           </form>
         </div>
@@ -268,8 +253,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
 
         {/* Action Bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-          <button onClick={handleDeleteTask} className="btn btn-danger btn-sm">
-            <Trash2 size={16} /> Delete Task
+          <button onClick={handleDeleteTask} className="btn btn-danger btn-sm" disabled={deleteTask.isPending}>
+            {deleteTask.isPending ? <div className="spinner" style={{ width: '14px', height: '14px' }} /> : <><Trash2 size={16} /> Delete Task</>}
           </button>
           <button onClick={handleClose} className="btn btn-secondary btn-sm">
             Close

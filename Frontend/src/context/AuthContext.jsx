@@ -1,36 +1,13 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/api';
+import { useCurrentUser, CURRENT_USER_KEY } from '../hooks/useAuth';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchCurrentUser = async () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const res = await api.get('/auth/current-user');
-      setUser(res.data?.data || null);
-    } catch (err) {
-      console.error('Failed to fetch user:', err);
-      setUser(null);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCurrentUser();
-  }, []);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loading } = useCurrentUser();
 
   const login = async (loginIdentifier, password) => {
     const isEmail = loginIdentifier.includes('@');
@@ -42,10 +19,12 @@ export const AuthProvider = ({ children }) => {
     };
     const res = await api.post('/auth/login', payload);
     const { user: loggedUser, accessToken, refreshToken } = res.data.data;
-    
+
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
-    setUser(loggedUser);
+
+    // Seed the cache with the logged-in user — no extra request needed
+    queryClient.setQueryData(CURRENT_USER_KEY, loggedUser);
     return res.data;
   };
 
@@ -72,20 +51,19 @@ export const AuthProvider = ({ children }) => {
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
-      setUser(null);
+      // Clear all cached data on logout
+      queryClient.clear();
     }
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        setUser,
+        user: user ?? null,
         loading,
         login,
         register,
         logout,
-        fetchCurrentUser,
       }}
     >
       {children}

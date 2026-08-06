@@ -5,7 +5,7 @@ import logger from "../logger/logger.js";
 export const cacheMiddleware = (keyGenerator, ttl = 3600) => {
   return async (req, res, next) => {
     try {
-      logger.info("Cache middleware invoked");
+      // logger.info("Cache middleware invoked");
       const key = keyGenerator(req);
 
       if (!key) {
@@ -13,7 +13,7 @@ export const cacheMiddleware = (keyGenerator, ttl = 3600) => {
       }
 
       const cachedData = await getCache(key);
-      logger.info(`Cache middleware: key=${key}, cachedData=${cachedData ? "found" : "not found"}`);
+      // logger.info(`Cache middleware: key=${key}, cachedData=${cachedData ? "found" : "not found"}`);
 
       if (cachedData) {
         logger.info(`Cache hit for key: ${key}`);

@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../api/api';
+import { useProject, useDeleteProject } from '../hooks/useProject';
+import { useTasks, useCreateTask, useUpdateTask } from '../hooks/useTasks';
+import { useMembers, useAddMember, useRemoveMember, useUpdateMemberRole } from '../hooks/useMembers';
+import { useNotes, useCreateNote, useDeleteNote } from '../hooks/useNotes';
 import TaskCard from '../components/TaskCard';
 import TaskDetailModal from '../components/TaskDetailModal';
 import Modal from '../components/Modal';
@@ -21,213 +24,141 @@ const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
 
-  const [project, setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'members' | 'notes'
+  // ─── Queries ───────────────────────────────────────────────────────────────
+  const { data: project, isLoading: loadingProject, error: projectError } = useProject(projectId);
+  const { data: tasks = [], isLoading: loadingTasks } = useTasks(projectId);
+  const { data: members = [], isLoading: loadingMembers } = useMembers(projectId);
+  const { data: notes = [], isLoading: loadingNotes } = useNotes(projectId);
 
-  // Task Modals
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const loading = loadingProject || loadingTasks || loadingMembers || loadingNotes;
+
+  // ─── Mutations ─────────────────────────────────────────────────────────────
+  const createTask = useCreateTask(projectId);
+  const updateTask = useUpdateTask(projectId);
+  const createNote = useCreateNote(projectId);
+  const deleteNote = useDeleteNote(projectId);
+  const addMember = useAddMember(projectId);
+  const removeMember = useRemoveMember(projectId);
+  const updateMemberRole = useUpdateMemberRole(projectId);
+  const deleteProject = useDeleteProject(projectId);
+
+  // ─── UI State ──────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('tasks');
   const [selectedTask, setSelectedTask] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  // Task form
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskStatus, setNewTaskStatus] = useState('todo');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
-  const [creatingTask, setCreatingTask] = useState(false);
 
-  // Member Modal
+  // Member form
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [memberIdentifier, setMemberIdentifier] = useState('');
   const [memberRole, setMemberRole] = useState('member');
-  const [addingMember, setAddingMember] = useState(false);
 
-  // Notes Modal
+  // Note form
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
-  const [creatingNote, setCreatingNote] = useState(false);
 
-  // Kanban Drag-and-Drop
-  const [dragOverColumn, setDragOverColumn] = useState(null);
+  const [pageError, setPageError] = useState('');
 
-  const fetchProjectData = async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const [projRes, tasksRes, membersRes, notesRes] = await Promise.all([
-        api.get(`/projects/${projectId}`),
-        api.get(`/tasks/${projectId}`),
-        api.get(`/projects/${projectId}/members`),
-        api.get(`/notes/${projectId}`),
-      ]);
+  // ─── Handlers ──────────────────────────────────────────────────────────────
 
-      setProject(projRes.data?.data);
-      setTasks(tasksRes.data?.data || []);
-      setMembers(membersRes.data?.data || []);
-      setNotes(notesRes.data?.data || []);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch project workspace data');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  const fetchTasksOnly = async () => {
-    try {
-      const tasksRes = await api.get(`/tasks/${projectId}`);
-      setTasks(tasksRes.data?.data || []);
-    } catch (err) {
-      console.error('Failed to refresh tasks:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (projectId) {
-      fetchProjectData();
-    }
-  }, [projectId]);
-
-  // Kanban DnD: drop a task card into a new status column
-  const handleDrop = async (e, newStatus) => {
+  const handleDrop = (e, newStatus) => {
     e.preventDefault();
     setDragOverColumn(null);
     const taskId = e.dataTransfer.getData('taskId');
     if (!taskId) return;
-
     const task = tasks.find((t) => t._id === taskId);
     if (!task || task.status === newStatus) return;
-
-    // Optimistic UI update
-    setTasks((prev) =>
-      prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
-    );
-
-    try {
-      await api.put(`/tasks/${projectId}/t/${taskId}`, { status: newStatus });
-    } catch (err) {
-      setError('Failed to move task. Please try again.');
-      fetchTasksOnly(); // revert on failure
-    }
+    // optimistic update is handled inside useUpdateTask
+    updateTask.mutate({ taskId, data: { status: newStatus } });
   };
 
-  // Create Task Handler
-  const handleCreateTask = async (e) => {
+  const handleCreateTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
-
-    try {
-      setCreatingTask(true);
-      await api.post(`/tasks/${projectId}`, {
-        title: newTaskTitle,
-        description: newTaskDesc,
-        status: newTaskStatus,
-        assignedTo: newTaskAssignee || null,
-      });
-
-      setIsCreateTaskOpen(false);
-      setNewTaskTitle('');
-      setNewTaskDesc('');
-      setNewTaskStatus('todo');
-      setNewTaskAssignee('');
-      fetchProjectData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create task');
-    } finally {
-      setCreatingTask(false);
-    }
+    createTask.mutate(
+      { title: newTaskTitle, description: newTaskDesc, status: newTaskStatus, assignedTo: newTaskAssignee || null },
+      {
+        onSuccess: () => {
+          setIsCreateTaskOpen(false);
+          setNewTaskTitle('');
+          setNewTaskDesc('');
+          setNewTaskStatus('todo');
+          setNewTaskAssignee('');
+        },
+        onError: (err) => setPageError(err.response?.data?.message || 'Failed to create task'),
+      }
+    );
   };
 
-  // Add Member Handler
-  const handleAddMember = async (e) => {
+  const handleAddMember = (e) => {
     e.preventDefault();
     if (!memberIdentifier.trim()) return;
-
-    try {
-      setAddingMember(true);
-      await api.post(`/projects/${projectId}/members`, {
-        username: memberIdentifier,
-        email: memberIdentifier,
-        role: memberRole,
-      });
-
-      setIsAddMemberOpen(false);
-      setMemberIdentifier('');
-      setMemberRole('member');
-      fetchProjectData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add project member');
-    } finally {
-      setAddingMember(false);
-    }
+    addMember.mutate(
+      { username: memberIdentifier, email: memberIdentifier, role: memberRole },
+      {
+        onSuccess: () => {
+          setIsAddMemberOpen(false);
+          setMemberIdentifier('');
+          setMemberRole('member');
+        },
+        onError: (err) => setPageError(err.response?.data?.message || 'Failed to add member'),
+      }
+    );
   };
 
-  // Remove Member Handler
-  const handleRemoveMember = async (userId) => {
+  const handleRemoveMember = (userId) => {
     if (!window.confirm('Remove this member from the project?')) return;
-    try {
-      await api.delete(`/projects/${projectId}/members/${userId}`);
-      fetchProjectData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to remove member');
-    }
+    removeMember.mutate(userId, {
+      onError: (err) => setPageError(err.response?.data?.message || 'Failed to remove member'),
+    });
   };
 
-  // Update Member Role
-  const handleUpdateRole = async (userId, newRole) => {
-    try {
-      await api.put(`/projects/${projectId}/members/${userId}`, { newRole: newRole.toLowerCase() });
-      fetchProjectData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update member role');
-    }
+  const handleUpdateRole = (userId, newRole) => {
+    updateMemberRole.mutate(
+      { userId, newRole: newRole.toLowerCase() },
+      { onError: (err) => setPageError(err.response?.data?.message || 'Failed to update role') }
+    );
   };
 
-  // Create Note Handler
-  const handleCreateNote = async (e) => {
+  const handleCreateNote = (e) => {
     e.preventDefault();
     if (!newNoteTitle.trim()) return;
-
-    try {
-      setCreatingNote(true);
-      await api.post(`/notes/${projectId}`, {
-        title: newNoteTitle,
-        content: newNoteContent,
-      });
-
-      setIsCreateNoteOpen(false);
-      setNewNoteTitle('');
-      setNewNoteContent('');
-      fetchProjectData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create note');
-    } finally {
-      setCreatingNote(false);
-    }
+    createNote.mutate(
+      { title: newNoteTitle, content: newNoteContent },
+      {
+        onSuccess: () => {
+          setIsCreateNoteOpen(false);
+          setNewNoteTitle('');
+          setNewNoteContent('');
+        },
+        onError: (err) => setPageError(err.response?.data?.message || 'Failed to create note'),
+      }
+    );
   };
 
-  // Delete Note Handler
-  const handleDeleteNote = async (noteId) => {
+  const handleDeleteNote = (noteId) => {
     if (!window.confirm('Are you sure you want to delete this note?')) return;
-    try {
-      await api.delete(`/notes/${projectId}/n/${noteId}`);
-      fetchProjectData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete note');
-    }
+    deleteNote.mutate(noteId, {
+      onError: (err) => setPageError(err.response?.data?.message || 'Failed to delete note'),
+    });
   };
 
-  // Delete Project Handler
-  const handleDeleteProject = async () => {
+  const handleDeleteProject = () => {
     if (!window.confirm('Are you sure you want to delete this entire project and all associated tasks/notes?')) return;
-    try {
-      await api.delete(`/projects/${projectId}`);
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete project');
-    }
+    deleteProject.mutate(undefined, {
+      onSuccess: () => navigate('/'),
+      onError: (err) => setPageError(err.response?.data?.message || 'Failed to delete project'),
+    });
   };
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -236,6 +167,8 @@ const ProjectDetailPage = () => {
       </div>
     );
   }
+
+  const error = pageError || projectError?.response?.data?.message || '';
 
   return (
     <div className="page-container">
@@ -610,8 +543,8 @@ const ProjectDetailPage = () => {
             <button type="button" onClick={() => setIsCreateTaskOpen(false)} className="btn btn-secondary">
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={creatingTask}>
-              {creatingTask ? <div className="spinner" /> : 'Create Task'}
+            <button type="submit" className="btn btn-primary" disabled={createTask.isPending}>
+              {createTask.isPending ? <div className="spinner" /> : 'Create Task'}
             </button>
           </div>
         </form>
@@ -649,8 +582,8 @@ const ProjectDetailPage = () => {
             <button type="button" onClick={() => setIsAddMemberOpen(false)} className="btn btn-secondary">
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={addingMember}>
-              {addingMember ? <div className="spinner" /> : 'Add Member'}
+            <button type="submit" className="btn btn-primary" disabled={addMember.isPending}>
+              {addMember.isPending ? <div className="spinner" /> : 'Add Member'}
             </button>
           </div>
         </form>
@@ -687,8 +620,8 @@ const ProjectDetailPage = () => {
             <button type="button" onClick={() => setIsCreateNoteOpen(false)} className="btn btn-secondary">
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={creatingNote}>
-              {creatingNote ? <div className="spinner" /> : 'Save Note'}
+            <button type="submit" className="btn btn-primary" disabled={createNote.isPending}>
+              {createNote.isPending ? <div className="spinner" /> : 'Save Note'}
             </button>
           </div>
         </form>
@@ -702,11 +635,8 @@ const ProjectDetailPage = () => {
           task={selectedTask}
           projectId={projectId}
           members={members}
-          onTaskUpdated={() => fetchProjectData(true)}
-          onTaskDeleted={() => {
-            setSelectedTask(null);
-            fetchProjectData(true);
-          }}
+          onTaskUpdated={() => setSelectedTask(null)}
+          onTaskDeleted={() => setSelectedTask(null)}
         />
       )}
     </div>
