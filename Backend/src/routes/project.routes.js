@@ -57,7 +57,7 @@ router
 
 router
   .route("/:projectId/members")
-  .get(validateProjectPermission(AvailableUserRole), getProjectMembers)
+  .get(cacheMiddleware((req) => `projectMembers:${req.params.projectId}/members`), getProjectMembers)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     addMemberToProjectValidator(),
@@ -67,6 +67,7 @@ router
 
 router
   .route("/:projectId/members/:userId")
+  // .get(cacheMiddleware((req) => `projectMember:${req.params.projectId}/${req.params.userId}`), getProjectMembers)
   .put(validateProjectPermission([UserRolesEnum.ADMIN]), updateMemberRole)
   .delete(
     validateProjectPermission([UserRolesEnum.ADMIN]),

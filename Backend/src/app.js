@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import reqLogger from "./logger/request.logger.js";
 import helmet from "helmet";
 import { reqId } from "./middlewares/reqId.middleware.js";
+import logger from "./logger/logger.js";
 
 const app = express();
 

@@ -17,6 +17,7 @@ import {
   verifyJWT,
   validateProjectPermission,
 } from "../middlewares/auth.middleware.js";
+import { cacheMiddleware } from "../middlewares/cache.middleware.js";
 
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 
@@ -27,7 +28,7 @@ router.use(verifyJWT);
 
 router
   .route("/:projectId")
-  .get(validateProjectPermission(AvailableUserRole), getTasks)
+  .get(cacheMiddleware((req) => `projectTasks:${req.params.projectId}`), validateProjectPermission(AvailableUserRole), getTasks)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN]),
     createTasksValidator(),
@@ -37,7 +38,7 @@ router
 
 router
   .route("/:projectId/t/:taskId")
-  .get(validateProjectPermission(AvailableUserRole), getTasksById)
+  .get(cacheMiddleware((req) => `projectTaskDetails:${req.params.projectId}/${req.params.taskId}`), validateProjectPermission(AvailableUserRole), getTasksById)
   .put(
     validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN]),
     validate,

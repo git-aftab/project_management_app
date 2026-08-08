@@ -13,6 +13,7 @@ import {
   verifyJWT,
   validateProjectPermission,
 } from "../middlewares/auth.middleware.js";
+import { cacheMiddleware } from "../middlewares/cache.middleware.js";
 
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 
@@ -22,7 +23,7 @@ router.use(verifyJWT);
 
 router
   .route("/:projectId")
-  .get(validateProjectPermission(AvailableUserRole), getProjectNotes)
+  .get(cacheMiddleware((req) => `projectNotes:${req.params.projectId}`), validateProjectPermission(AvailableUserRole), getProjectNotes)
   .post(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     createNotesValidators(),
@@ -32,7 +33,7 @@ router
 
 router
   .route("/:projectId/n/:noteId")
-  .get(validateProjectPermission(AvailableUserRole), getProjectNotesDetails)
+  .get(cacheMiddleware((req) => `projectNoteDetails:${req.params.projectId}/${req.params.noteId}`), validateProjectPermission(AvailableUserRole), getProjectNotesDetails)
   .put(
     validateProjectPermission([UserRolesEnum.ADMIN]),
     validate,
