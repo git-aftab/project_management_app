@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 import { Tasks } from "../models/task.models.js";
 import { subTask } from "../models/subtask.models.js";
+import { deleteCache } from "../utils/cache.js";
 
 const getTasks = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -55,10 +56,13 @@ const createTasks = asyncHandler(async (req, res) => {
     attachments,
   });
 
+  deleteCache(`projectTasks:${projectId}`);
+
   return res
     .status(201)
     .json(new ApiResponse(201, task, "Task Created Successfully"));
 });
+
 const UpdateTasks = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
   const { assignedTo, status, title, description } = req.body;
@@ -78,6 +82,9 @@ const UpdateTasks = asyncHandler(async (req, res) => {
   if (!updatedTask) {
     throw new ApiError(404, "Task not found");
   }
+
+  deleteCache(`projectTasks:${req.params.projectId}`);
+  deleteCache(`projectTaskDetails:${req.params.projectId}/${taskId}`);
 
   return res
     .status(200)
@@ -165,6 +172,9 @@ const deleteTasks = asyncHandler(async (req, res) => {
 
   await subTask.deleteMany({ task: taskId });
 
+  deleteCache(`projectTasks:${req.params.projectId}`);
+  deleteCache(`projectTaskDetails:${req.params.projectId}/${taskId}`);
+
   return res
     .status(200)
     .json(new ApiResponse(200, delTask, "Task deleted successfully"));
@@ -184,6 +194,8 @@ const createSubTasks = asyncHandler(async (req, res) => {
     task: taskId,
     createdBy: req.user._id,
   });
+
+  deleteCache(`projectTaskDetails:${req.params.projectId}/${taskId}`);
 
   return res
     .status(200)
@@ -207,6 +219,9 @@ const updateSubTasks = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Sub-Task not found");
   }
 
+  deleteCache(`projectTaskDetails:${req.params.projectId}/${updatedSubTask.task}`);
+  deleteCache(`projectTasks:${req.params.projectId}`);
+
   return res
     .status(200)
     .json(
@@ -221,6 +236,9 @@ const deleteSubTasks = asyncHandler(async (req, res) => {
   if (!delSubTask) {
     throw new ApiError(404, "Sub-Task not found");
   }
+
+  deleteCache(`projectTaskDetails:${req.params.projectId}/${delSubTask.task}`);
+  deleteCache(`projectTasks:${req.params.projectId}`);
 
   return res
     .status(200)

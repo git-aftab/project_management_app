@@ -9,6 +9,7 @@ import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
+import { deleteCache } from "../utils/cache.js";
 
 const getProjects = asyncHandler(async (req, res) => {
   const projects = await ProjectMember.aggregate([
@@ -91,6 +92,8 @@ const createProject = asyncHandler(async (req, res) => {
     role: UserRolesEnum.ADMIN,
   });
 
+  deleteCache(`projects:${req.user._id}`);
+
   return res
     .status(200)
     .json(new ApiResponse(200, project, "Project Created Successfully"));
@@ -112,6 +115,9 @@ const updateProject = asyncHandler(async (req, res) => {
   if (!project) {
     throw new ApiError(404, "Project not found");
   }
+
+  deleteCache(`projects:${req.user._id}`);
+  deleteCache(`projectId:${projectId}`);
 
   return res
     .status(200)
@@ -135,6 +141,14 @@ const deleteProject = asyncHandler(async (req, res) => {
   }
   await Tasks.deleteMany({ project: projectId });
   await ProjectNotes.deleteMany({ project: projectId });
+
+  deleteCache(`projects:${req.user._id}`);
+  deleteCache(`projectId:${projectId}`);
+  deleteCache(`projectMembers:${projectId}/members`);
+  deleteCache(`projectTasks:${projectId}`);
+  deleteCache(`projectTaskDetails:${projectId}*`);
+  deleteCache(`projectNotes:${projectId}`);
+  deleteCache(`projectNoteDetails:${projectId}*`);
 
   return res
     .status(200)
@@ -233,6 +247,9 @@ const addMembersToProject = asyncHandler(async (req, res) => {
     },
   );
 
+  deleteCache(`projectMembers:${projectId}/members`);
+  deleteCache(`projects:${req.user._id}`);
+
   return res
     .status(200)
     .json(
@@ -257,6 +274,9 @@ const deleteProjectMember = asyncHandler(async (req, res) => {
   if (!projectMember) {
     throw new ApiError(404, "Project member not found");
   }
+
+    deleteCache(`projects:${req.user._id}`);
+    deleteCache(`projectMembers:${projectId}/members`);
 
   return res
     .status(200)
@@ -295,6 +315,9 @@ const updateMemberRole = asyncHandler(async (req, res) => {
   if (!projectMember) {
     throw new ApiError(404, "Project member not found");
   }
+
+    deleteCache(`projects:${req.user._id}`);
+    deleteCache(`projectMembers:${projectId}/members`);
 
   return res
     .status(200)

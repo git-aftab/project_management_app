@@ -32,7 +32,7 @@ router.use(verifyJWT);
 router
   .route("/")
   .get(
-    cacheMiddleware((req) => `projects:${req.user.id}`),
+    cacheMiddleware((req) => `projects:${req.user._id}`),
     getProjects,
   )
   .post([...createProjectValidator(), validate], createProject);

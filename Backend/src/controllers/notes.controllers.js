@@ -4,6 +4,7 @@ import { ProjectNotes } from "../models/note.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import {deleteCache} from "../utils/cache.js"
 
 const getProjectNotes = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -42,6 +43,8 @@ const createProjectNotes = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
   });
 
+  deleteCache(`projectNotes:${projectId}`);
+
   return res
     .status(201)
     .json(new ApiResponse(200, note, "Note Created Successfully"));
@@ -77,6 +80,9 @@ const updateProjectNotes = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Note not found");
   }
 
+    deleteCache(`projectNotes:${projectId}`);
+    deleteCache(`projectNoteDetails:${projectId}/${noteId}`);
+
   return res
     .status(200)
     .json(new ApiResponse(200, updateNote, "Note updated successfully"));
@@ -93,6 +99,9 @@ const delProjectNotes = asyncHandler(async (req, res) => {
   if (!delNote) {
     throw new ApiError(404, "Note not found");
   }
+  
+    deleteCache(`projectNotes:${projectId}`);
+    deleteCache(`projectNoteDetails:${projectId}/${noteId}`);
 
   return res
     .status(200)
