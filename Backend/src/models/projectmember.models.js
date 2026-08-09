@@ -26,3 +26,5 @@ export const ProjectMember = mongoose.model(
   "ProjectMember",
   projectMemberSchema,
 );
+
+projectMemberSchema.index({ project: 1, user: 1}, {unique: true});

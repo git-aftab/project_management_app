@@ -21,3 +21,5 @@ const projectSchema = new Schema(
 );
 
 export const Project = mongoose.model("Project", projectSchema);
+
+projectSchema.index({description: 1})
