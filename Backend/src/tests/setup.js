@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
+import "dotenv/config"
 
 let mongoServer;
 

@@ -95,7 +95,7 @@ const createProject = asyncHandler(async (req, res) => {
   deleteCache(`projects:${req.user._id}`);
 
   return res
-    .status(200)
+    .status(201)
     .json(new ApiResponse(200, project, "Project Created Successfully"));
 });
 

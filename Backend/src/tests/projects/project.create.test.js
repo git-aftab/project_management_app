@@ -4,7 +4,6 @@ import { describe, it, expect } from "vitest";
 import { User } from "../../models/user.model.js";
 import app from "../../app.js";
 import { email } from "zod";
-import { response } from "express";
 
 async function createTestUser() {
   const user = await User.create({
@@ -38,4 +37,49 @@ describe("POST /api/v1/projects", () => {
     expect(response.body.data.description).toBe("Created through API test");
     expect(response.body.data.createdBy).toBe(user._id.toString());
   });
+
+  it("Should reject request without authentication", async () => {
+    const res = await request(app).post("/api/v1/projects").send({
+      name: "Unauthorized Project",
+      description: "should fail",
+    });
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("should reject project with invalid data", async () => {
+    const { accessToken } = await createTestUser();
+
+    const res = await request(app)
+      .post("/api/v1/projects")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        name: "",
+        description: "",
+      });
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+  });
+
+  it("should reject duplicate project name", async()=>{
+    const {accessToken} = await createTestUser();
+
+    await request(app)
+      .post("/api/v1/projects")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        name: "Duplicate Project",
+        description: "First project",
+      });
+
+    const res = await request(app)
+      .post("/api/v1/projects")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        name: "Duplicate Project",
+        description: "Second project",
+      });
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+  })
 });
