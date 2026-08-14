@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
+import redis from "../config/redis.js";
 import "dotenv/config"
 
 let mongoServer;
@@ -19,6 +20,7 @@ beforeEach(async () => {
   for (const key of Object.keys(collections)) {
     await collections[key].deleteMany({});
   }
+  // await redis.flushdb();
 });
 
 afterAll(async () => {
