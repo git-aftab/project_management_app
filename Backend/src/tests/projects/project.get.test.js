@@ -4,6 +4,7 @@ import app from "../../app.js";
 import { User } from "../../models/user.model.js";
 import { Project } from "../../models/project.models.js";
 import { deleteCache } from "../../utils/cache.js";
+import { ProjectMember } from "../../models/projectmember.models.js";
 
 async function createTestUser() {
   const user = await User.create({
@@ -22,19 +23,30 @@ describe("GET /api/v1/projects", () => {
   it("should get project successfully", async () => {
     const { user, accessToken } = await createTestUser();
 
-    await Project.create({
+    const project1 = await Project.create({
       name: "Project One",
       description: "First test project",
       createdBy: user._id,
     });
+
+    await ProjectMember.create({
+      user: user._id,
+      project: project1._id,
+      role: "admin",
+    });
     await deleteCache(`projects:${user._id}`);
-    
-    await Project.create({
-        name: "Project two",
+
+    const project2 = await Project.create({
+      name: "Project two",
       description: "Second test project",
       createdBy: user._id,
     });
-    
+
+    await ProjectMember.create({
+      user: user._id,
+      project: project2._id,
+      role: "admin",
+    });
     await deleteCache(`projects:${user._id}`);
 
     const projectsInDb = await Project.find({});
