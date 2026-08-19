@@ -20,7 +20,7 @@ async function createTestUser() {
 }
 
 describe("GET /api/v1/projects", () => {
-  it("should get project successfully", async () => {
+  it("should get projects successfully", async () => {
     const { user, accessToken } = await createTestUser();
 
     const project1 = await Project.create({
@@ -53,7 +53,6 @@ describe("GET /api/v1/projects", () => {
     console.log("PROJECTS IN DB:", projectsInDb.length);
     console.log("PROJECTS: ", projectsInDb);
 
-
     const res = await request(app)
       .get("/api/v1/projects")
       .set("Authorization", `Bearer ${accessToken}`);
@@ -65,5 +64,38 @@ describe("GET /api/v1/projects", () => {
     expect(res.body.data).toBeDefined();
 
     expect(res.body.data.length).toBe(2);
+  });
+});
+
+describe("GET /api/v1/projects/:projectId", () => {
+  it("Should Get project by id successfully", async () => {
+    const { user, accessToken } = await createTestUser();
+
+    const project = await Project.create({
+      name: "test project",
+      description: "project description",
+      createdBy: user._id,
+    });
+
+    await ProjectMember.create({
+      user: user._id,
+      project: project._id,
+      role: "admin",
+    });
+
+    await deleteCache(`projects:${user._id}`);
+
+    const res = await request(app)
+      .get(`/api/v1/projects/${project._id}`)
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    expect(res.body.data).toBeDefined();
+
+    expect(res.body.data._id).toBe(project._id.toString());
+    expect(res.body.data.name).toBe("test project");
+    expect(res.body.data.description).toBe("project description");
   });
 });
