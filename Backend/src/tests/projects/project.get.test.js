@@ -1,4 +1,5 @@
 import request from "supertest";
+import mongoose from "mongoose";
 import { describe, it, expect } from "vitest";
 import app from "../../app.js";
 import { User } from "../../models/user.model.js";
@@ -65,6 +66,12 @@ describe("GET /api/v1/projects", () => {
 
     expect(res.body.data.length).toBe(2);
   });
+
+  it("should reject a request without authentication", async () => {
+    const res = await request(app).get("/api/v1/projects");
+
+    expect(res.statusCode).toBe(401);
+  });
 });
 
 describe("GET /api/v1/projects/:projectId", () => {
@@ -97,5 +104,13 @@ describe("GET /api/v1/projects/:projectId", () => {
     expect(res.body.data._id).toBe(project._id.toString());
     expect(res.body.data.name).toBe("test project");
     expect(res.body.data.description).toBe("project description");
+  });
+
+  it("should reject a request without authentication", async () => {
+    const res = await request(app).get(
+      `/api/v1/projects/${new mongoose.Types.ObjectId()}`,
+    );
+
+    expect(res.statusCode).toBe(401);
   });
 });

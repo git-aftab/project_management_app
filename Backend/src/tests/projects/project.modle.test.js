@@ -14,4 +14,13 @@ describe("Project Model", () => {
     expect(project.name).toBe("Test Project");
     expect(project.description).toBe("Testing Project Model");
   });
+
+  it("should reject a project without a name", async () => {
+    await expect(
+      Project.create({
+        description: "A project must have a name",
+        createdBy: new mongoose.Types.ObjectId(),
+      }),
+    ).rejects.toThrow();
+  });
 });

@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import app from "../../app.js";
 import { User } from "../../models/user.model.js";
 import { Project } from "../../models/project.models.js";
+import mongoose from "mongoose";
 import { ProjectMember } from "../../models/projectmember.models.js";
 import { deleteCache } from "../../utils/cache.js";
 
@@ -52,5 +53,37 @@ describe("PUT api/v1/projects/:projectID", () => {
     expect(res.body.data.name).toBe("updated project");
     expect(res.body.data.description).toBe("updated description");
     expect(res.body.message).toBe("Project updated successfully");
+  });
+
+  it("should reject an update without authentication", async () => {
+    const res = await request(app)
+      .put(`/api/v1/projects/${new mongoose.Types.ObjectId()}`)
+      .send({
+        name: "updated project",
+        description: "updated description",
+      });
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("should return not found when the project does not exist", async () => {
+    const { user, accessToken } = await createTestUser();
+    const projectId = new mongoose.Types.ObjectId();
+
+    await ProjectMember.create({
+      user: user._id,
+      project: projectId,
+      role: "admin",
+    });
+
+    const res = await request(app)
+      .put(`/api/v1/projects/${projectId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        name: "updated project",
+        description: "updated description",
+      });
+
+    expect(res.statusCode).toBe(404);
   });
 });
