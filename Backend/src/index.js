@@ -1,14 +1,12 @@
-import dotenv from "dotenv";
+import "dotenv/config";
 import app from "./app.js";
 import connectDB from "./db/db.js";
 import mongoose from "mongoose";
 import redis from "./config/redis.js";
+import { validateEnv } from "./config/env.js";
 
-dotenv.config({
-  path: "./.env",
-});
-
-const PORT = process.env.PORT || 3000;
+const env = validateEnv(process.env);
+const PORT = env.PORT;
 
 let server;
 
