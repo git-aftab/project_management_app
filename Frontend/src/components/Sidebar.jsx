@@ -59,7 +59,7 @@ const Sidebar = () => {
         className={({ isActive }) => `btn btn-ghost ${isActive ? 'active-nav' : ''}`}
         style={({ isActive }) => ({
           ...navLinkStyle(isActive),
-          backgroundColor: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+          backgroundColor: isActive ? 'var(--accent-glow)' : 'transparent',
         })}
       >
         <BookOpen size={18} />

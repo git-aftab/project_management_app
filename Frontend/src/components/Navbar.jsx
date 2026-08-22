@@ -1,12 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { Sun, Moon, LogOut, LayoutDashboard, User } from 'lucide-react';
+import { LogOut, LayoutDashboard, User } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -44,7 +42,7 @@ const Navbar = () => {
             <LayoutDashboard size={20} />
           </div>
           <span style={{
-            fontFamily: 'Outfit',
+            fontFamily: 'var(--font-sans)',
             fontSize: '1.25rem',
             fontWeight: '700',
             color: 'var(--text-primary)',
@@ -56,15 +54,6 @@ const Navbar = () => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button
-          onClick={toggleTheme}
-          className="btn btn-ghost"
-          style={{ padding: '0.5rem', borderRadius: '50%' }}
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-        >
-          {theme === 'dark' ? <Sun size={20} color="#f59e0b" /> : <Moon size={20} color="#6366f1" />}
-        </button>
-
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none' }}>
