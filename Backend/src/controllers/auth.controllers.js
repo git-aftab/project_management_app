@@ -9,6 +9,16 @@ import {
 } from "../utils/mail.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { createUploadURL } from "../services/s3.service.js";
+import logger from "../logger/logger.js";
+import path from "path";
+
+// ALLOWED IMG FORMAT
+const ALLOWED_FORMATS = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
 
 // Generate Access Token and Refresh Token
 
@@ -54,7 +64,9 @@ const registerUser = asyncHandler(async (req, res) => {
     username,
     fullName,
     isEmailVerified: false,
-    ...(avatarUrl && { avatar: { url: avatarUrl, localPath: avatarLocalPath } }),
+    ...(avatarUrl && {
+      avatar: { url: avatarUrl, localPath: avatarLocalPath },
+    }),
   });
 
   const { unHashedToken, hashedToken, tokenExpiry } =
@@ -399,7 +411,9 @@ const updateAvatar = asyncHandler(async (req, res) => {
       },
     },
     { new: true },
-  ).select("-password -refreshToken -emailVerificationToken -emailVerificationExpiry");
+  ).select(
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
+  );
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -408,6 +422,33 @@ const updateAvatar = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, user, "Avatar updated successfully"));
+});
+
+const generateUploadURL = asyncHandler(async (req, res) => {
+  const { fileName, contentType } = req.body;
+
+  if (!fileName || !contentType) {
+    throw new ApiError(400, "File is required!");
+  }
+
+  if (!ALLOWED_FORMATS[contentType]) {
+    throw new ApiError(400, "Please provide a valid format - png/jpg/webp");
+  }
+
+  const fileId = crypto.randomUUID();
+
+  const key = `user/${req.user.id}/profile/${fileId}${ALLOWED_FORMATS[contentType]}`;
+
+  const uploadUrl = await createUploadURL({ key, contentType });
+
+  if (!uploadUrl) {
+    logger.error("Error creating upload url");
+    throw new ApiError(500, "Error creating upload url");
+  }
+
+  return res
+    .status(200)
+    .json(200, { url: uploadUrl, key: key }, "Upload url created successfully");
 });
 
 export {
@@ -422,4 +463,5 @@ export {
   resetForgotPassword,
   changeCurrentPassword,
   updateAvatar,
+  generateUploadURL,
 };

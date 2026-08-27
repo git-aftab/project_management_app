@@ -11,6 +11,7 @@ import {
   resetForgotPassword,
   verifyEmail,
   updateAvatar,
+  generateUploadURL
 } from "../controllers/auth.controllers.js";
 import { validate } from "../middlewares/validator.middleware.js";
 import {
@@ -63,5 +64,7 @@ router
 router
   .route("/update-avatar")
   .post(verifyJWT, upload.single("avatar"), updateAvatar);
+
+router.route("/presign").post(verifyJWT, generateUploadURL)
 
 export default router;

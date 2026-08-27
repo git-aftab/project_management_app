@@ -21,3 +21,23 @@ export const createUploadURL = async ({ key, contentType }) => {
 
   return url;
 };
+
+export const createDownloadURL = async ({ key }) => {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+  });
+
+  const url = await getSignedUrl(s3Client, command, {
+    expiresIn: 60 * 10,
+  });
+};
+
+export const deleteURL = async ({ key }) => {
+  const command = new DeleteObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+  });
+
+  return s3Client.send(command);
+};
