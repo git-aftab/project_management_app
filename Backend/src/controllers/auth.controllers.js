@@ -434,12 +434,18 @@ const generateUploadURL = asyncHandler(async (req, res) => {
   if (!ALLOWED_FORMATS[contentType]) {
     throw new ApiError(400, "Please provide a valid format - png/jpg/webp");
   }
+  console.log("Generating the url...")
 
   const fileId = crypto.randomUUID();
 
   const key = `user/${req.user.id}/profile/${fileId}${ALLOWED_FORMATS[contentType]}`;
 
+  // logger.info("key:")
+  console.log(key)
+
   const uploadUrl = await createUploadURL({ key, contentType });
+  // logger.info("Url generated:")
+  console.log(uploadUrl);
 
   if (!uploadUrl) {
     logger.error("Error creating upload url");
@@ -448,7 +454,13 @@ const generateUploadURL = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(200, { url: uploadUrl, key: key }, "Upload url created successfully");
+    .json(
+      new ApiResponse(
+        200,
+        { url: uploadUrl, key: key },
+        "Upload url created successfully",
+      ),
+    );
 });
 
 export {
