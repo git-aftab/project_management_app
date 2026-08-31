@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api.js";
-import { useGenerateUrl } from "../hooks/useProfileImgUpload.js";
+import { useGenerateUrl, useUploadImg } from "../hooks/useProfileImgUpload.js";
 import {
   User,
   Mail,
@@ -21,11 +21,12 @@ const ProfilePage = () => {
   const [avatarMsg, setAvatarMsg] = useState("");
   const [avatarError, setAvatarError] = useState("");
   const {
-    mutate: generateAvatarUrl,
-    isPending,
-    isError,
-    error,
+    mutateAsync: generateAvatarUrl,
+    isPending: isUrlGenPending,
+    isError: isUrlGenError,
+    error: urlGenError,
   } = useGenerateUrl();
+  const {mutateAsync: UploadImg, isPending: isUploadPenError, isError: isUploadError, error: uploadError} = useUploadImg()
   const avatarInputRef = useRef(null);
 
   // Password state
@@ -57,7 +58,14 @@ const ProfilePage = () => {
     try {
       setAvatarLoading(true);
 
-      const {url, key} = generateAvatarUrl(avatarFile);
+      const {url, key} = await generateAvatarUrl(avatarFile);
+      console.log("Upload Url: ", url);
+      console.log("Upload Key: ", key);
+
+      await UploadImg({url, avatarFile});
+
+      await api.patch('/api/v1/auth/update-avatar', {key})
+
     } catch (err) {
       setAvatarError(err.response?.data?.message || "Failed to update avatar");
     } finally {
