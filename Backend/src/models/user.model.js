@@ -7,13 +7,13 @@ const userSchema = new Schema(
   {
     // avatar/profile-img
     avatar: {
-      type: {
-        url: String,
-        localPath: String,
+      key: {
+        type: String,
+        default: "",
       },
-      default: {
-        url: `https://placehold.co/200x200`,
-        localPath: "",
+      url: {
+        type: String,
+        default: "https://placehold.co/200x200",
       },
     },
     username: {

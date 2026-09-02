@@ -10,12 +10,6 @@ const fetchCurrentUser = async () => {
   return res.data?.data || null;
 };
 
-/**
- * useCurrentUser — wraps /auth/current-user with TanStack Query.
- * - Deduplicates concurrent requests automatically.
- * - Caches for 5 minutes; re-validates on window focus.
- * - Returns null (not an error) when no token exists.
- */
 export const useCurrentUser = () => {
   return useQuery({
     queryKey: CURRENT_USER_KEY,

@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 import { createUploadURL } from "../services/s3.service.js";
 import logger from "../logger/logger.js";
 import path from "path";
+import { error } from "console";
 
 // ALLOWED IMG FORMAT
 const ALLOWED_FORMATS = {
@@ -396,32 +397,31 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
-  if (!req.file) {
-    throw new ApiError(400, "Avatar image is required");
+  console.log("Trggered update avatar after key generation from aws.")
+  const user = req.user.id;
+  const { key } = req.body;
+
+  if (!key) {
+    throw new ApiError("Image key from aws is missing.");
   }
 
-  const avatarUrl = `${process.env.SERVER_URL}/images/${req.file.filename}`;
-  const avatarLocalPath = req.file.path;
-
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
+  const updatedAvatar = await User.findByIdAndUpdate(
+    user,
     {
       $set: {
-        avatar: { url: avatarUrl, localPath: avatarLocalPath },
+        "avatar.key": key,
       },
     },
     { new: true },
-  ).select(
-    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
   );
 
-  if (!user) {
-    throw new ApiError(404, "User not found");
+  if (!updateAvatar) {
+    throw new ApiError("Error saving/updating the img key");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Avatar updated successfully"));
+    .json(new ApiResponse(200, updatedAvatar, "Avatar updated successfully"));
 });
 
 const generateUploadURL = asyncHandler(async (req, res) => {
@@ -434,14 +434,14 @@ const generateUploadURL = asyncHandler(async (req, res) => {
   if (!ALLOWED_FORMATS[contentType]) {
     throw new ApiError(400, "Please provide a valid format - png/jpg/webp");
   }
-  console.log("Generating the url...")
+  console.log("Generating the url...");
 
   const fileId = crypto.randomUUID();
 
   const key = `user/${req.user.id}/profile/${fileId}${ALLOWED_FORMATS[contentType]}`;
 
   // logger.info("key:")
-  console.log(key)
+  console.log(key);
 
   const uploadUrl = await createUploadURL({ key, contentType });
   // logger.info("Url generated:")
