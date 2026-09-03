@@ -30,16 +30,13 @@ const RegisterPage = () => {
     setError("");
   };
 
-  const handleAvatarUpload = (e) => {
-    e.preventDefault();
-    if (!avatarFile) {
-      setError("Profile img is required");
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if(!avatarFile){
+      setError("Avatar is required")
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");

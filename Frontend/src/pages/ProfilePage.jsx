@@ -26,7 +26,12 @@ const ProfilePage = () => {
     isError: isUrlGenError,
     error: urlGenError,
   } = useGenerateUrl();
-  const {mutateAsync: UploadImg, isPending: isUploadPenError, isError: isUploadError, error: uploadError} = useUploadImg()
+  const {
+    mutateAsync: UploadImg,
+    isPending: isUploadPenError,
+    isError: isUploadError,
+    error: uploadError,
+  } = useUploadImg();
   const avatarInputRef = useRef(null);
 
   // Password state
@@ -58,14 +63,15 @@ const ProfilePage = () => {
     try {
       setAvatarLoading(true);
 
-      const {url, key} = await generateAvatarUrl(avatarFile);
+      const { url, key } = await generateAvatarUrl(avatarFile);
       console.log("Upload Url: ", url);
       console.log("Upload Key: ", key);
+      console.log(" sending avatarFile to upload img: ", avatarFile);
 
-      await UploadImg({url, avatarFile});
+      await UploadImg({ url, file: avatarFile });
 
-      await api.patch('/api/v1/auth/update-avatar', {key})
-
+      console.log("Setting up the key in the DB");
+      await api.patch("/auth/update-avatar", { key });
     } catch (err) {
       setAvatarError(err.response?.data?.message || "Failed to update avatar");
     } finally {

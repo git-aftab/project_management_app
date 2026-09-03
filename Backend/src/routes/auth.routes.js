@@ -63,7 +63,7 @@ router
 // Update avatar (secured)
 router
   .route("/update-avatar")
-  .post(verifyJWT, upload.single("avatar"), updateAvatar);
+  .patch(verifyJWT, updateAvatar);
 
 router.route("/presign").post(verifyJWT, generateUploadURL)
 

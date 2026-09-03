@@ -397,12 +397,12 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
-  console.log("Trggered update avatar after key generation from aws.")
+  console.log("Triggered update avatar after key generation from aws.");
   const user = req.user.id;
   const { key } = req.body;
 
   if (!key) {
-    throw new ApiError("Image key from aws is missing.");
+    throw new ApiError(404, "Image key from aws is missing.");
   }
 
   const updatedAvatar = await User.findByIdAndUpdate(
@@ -416,7 +416,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
   );
 
   if (!updateAvatar) {
-    throw new ApiError("Error saving/updating the img key");
+    throw new ApiError(404, "Error saving/updating the img key");
   }
 
   return res
