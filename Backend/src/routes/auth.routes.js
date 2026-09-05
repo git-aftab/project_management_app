@@ -11,7 +11,8 @@ import {
   resetForgotPassword,
   verifyEmail,
   updateAvatar,
-  generateUploadURL
+  generateUploadURL,
+  getAvatarUrl,
 } from "../controllers/auth.controllers.js";
 import { validate } from "../middlewares/validator.middleware.js";
 import {
@@ -29,7 +30,11 @@ const router = Router();
 // Unsecure Routes --> These doesn't require JWT
 router
   .route("/register")
-  .post(upload.single("avatar"), [...userRegisterValidator(), validate], registerUser);
+  .post(
+    upload.single("avatar"),
+    [...userRegisterValidator(), validate],
+    registerUser,
+  );
 
 router.route("/login").post([...userLoginValidator(), validate], loginUser);
 
@@ -47,7 +52,10 @@ router
 
 // Secure routes --> These require JWT
 router.route("/logout").post(verifyJWT, logoutUser);
-router.route("/current-user").get(verifyJWT, getCurrentUser).post(verifyJWT, getCurrentUser);
+router
+  .route("/current-user")
+  .get(verifyJWT, getCurrentUser)
+  .post(verifyJWT, getCurrentUser);
 router
   .route("/change-password")
   .post(
@@ -61,10 +69,10 @@ router
   .post(verifyJWT, resendEmailVerification);
 
 // Update avatar (secured)
-router
-  .route("/update-avatar")
-  .patch(verifyJWT, updateAvatar);
+router.route("/update-avatar").patch(verifyJWT, updateAvatar);
 
-router.route("/presign").post(verifyJWT, generateUploadURL)
+router.route("/presign").post(verifyJWT, generateUploadURL);
+
+router.route("/avatar").get(verifyJWT, getAvatarUrl);
 
 export default router;

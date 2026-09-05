@@ -9,7 +9,7 @@ import {
 } from "../utils/mail.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { createUploadURL } from "../services/s3.service.js";
+import { createDownloadURL, createUploadURL } from "../services/s3.service.js";
 import logger from "../logger/logger.js";
 import path from "path";
 import { error } from "console";
@@ -463,6 +463,22 @@ const generateUploadURL = asyncHandler(async (req, res) => {
     );
 });
 
+const getAvatarUrl = asyncHandler(async (req, res) => {
+  const user = User.findById(req.user.id);
+
+  if (!user?.avatar?.key) {
+    return res.status(200).json(new ApiResponse(200, null, "Avatar not found"));
+  }
+
+  const url = createDownloadURL({
+    key: user.avatar.key,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, url, "Avatar url fetched successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -476,4 +492,5 @@ export {
   changeCurrentPassword,
   updateAvatar,
   generateUploadURL,
+  getAvatarUrl
 };
