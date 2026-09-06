@@ -174,7 +174,7 @@ const ProfilePage = () => {
               >
                 {displayAvatar && !avatarIsPlaceholder ? (
                   <img
-                    src={displayAvatar}
+                    src={user?.avatar?.url}
                     alt="avatar"
                     style={{
                       width: "100%",

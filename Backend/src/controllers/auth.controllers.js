@@ -138,7 +138,15 @@ const loginUser = asyncHandler(async (req, res) => {
   // not sending unnecessary fields to the client
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
-  );
+  ).lean();
+
+  if (loggedInUser?.avatar?.key) {
+    loggedInUser.avatar.url = await createDownloadURL({
+      key: loggedInUser.avatar.key,
+    });
+  }
+
+  console.log("LoggedInUser:", loggedInUser)
 
   // cookeis require opitons
   const options = {
@@ -492,5 +500,5 @@ export {
   changeCurrentPassword,
   updateAvatar,
   generateUploadURL,
-  getAvatarUrl
+  getAvatarUrl,
 };

@@ -31,6 +31,8 @@ export const createDownloadURL = async ({ key }) => {
   const url = await getSignedUrl(s3Client, command, {
     expiresIn: 60 * 10,
   });
+
+  return url;
 };
 
 export const deleteURL = async ({ key }) => {
