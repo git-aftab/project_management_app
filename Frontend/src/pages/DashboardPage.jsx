@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useProjects, useCreateProject } from '../hooks/useProject';
 import Modal from '../components/Modal';
-import { FolderKanban, Plus, Search, Users, Calendar, ArrowRight, Layers } from 'lucide-react';
+import { FolderKanban, Plus, Search, Users, Calendar, ArrowRight, Layers, X } from 'lucide-react';
 
 const DashboardPage = () => {
   const { user } = useAuth();
@@ -16,10 +16,13 @@ const DashboardPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
+  const [createModalError, setCreateModalError] = useState('');
+  const [dismissedError, setDismissedError] = useState(false);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
+    setCreateModalError('');
 
     createProject.mutate(
       { name: newProjectName, description: newProjectDesc },
@@ -28,6 +31,10 @@ const DashboardPage = () => {
           setIsModalOpen(false);
           setNewProjectName('');
           setNewProjectDesc('');
+          setCreateModalError('');
+        },
+        onError: (err) => {
+          setCreateModalError(err.response?.data?.message || 'Failed to create project');
         },
       }
     );
@@ -61,17 +68,23 @@ const DashboardPage = () => {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => { setIsModalOpen(true); setCreateModalError(''); }}
           className="btn btn-primary"
         >
           <Plus size={18} /> New Project
         </button>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {createProject.isError && (
-        <div className="alert alert-error">
-          {createProject.error?.response?.data?.message || 'Failed to create project'}
+      {!dismissedError && error && (
+        <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setDismissedError(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
 
@@ -222,10 +235,22 @@ const DashboardPage = () => {
       {/* Create Project Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { setIsModalOpen(false); setCreateModalError(''); }}
         title="Create New Project"
       >
         <form onSubmit={handleCreateProject}>
+          {createModalError && (
+            <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <span>{createModalError}</span>
+              <button
+                type="button"
+                onClick={() => setCreateModalError('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Project Name</label>
             <input

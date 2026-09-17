@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LayoutDashboard, CheckCircle, Camera, User } from "lucide-react";
+import { LayoutDashboard, CheckCircle, Camera, User, X } from "lucide-react";
 
 const RegisterPage = () => {
   const [username, setUsername] = useState("");
@@ -33,10 +33,6 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if(!avatarFile){
-      setError("Avatar is required")
-    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -109,7 +105,18 @@ const RegisterPage = () => {
           </p>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && (
+          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setError('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {success ? (
           <div style={{ textAlign: "center", padding: "1rem 0" }}>
@@ -217,7 +224,7 @@ const RegisterPage = () => {
                   marginTop: "0.4rem",
                 }}
               >
-                Profile photo (optional, max 1 MB)
+                Profile photo (optional, max 2 MB)
               </span>
               <input
                 ref={avatarInputRef}
@@ -227,7 +234,6 @@ const RegisterPage = () => {
                 onChange={handleAvatarChange}
               />
             </div>
-
             <div className="form-group">
               <label className="form-label">Username</label>
               <input

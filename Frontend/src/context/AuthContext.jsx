@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import api from '../api/api';
 import { useCurrentUser, CURRENT_USER_KEY } from '../hooks/useAuth';
 
@@ -7,7 +8,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const queryClient = useQueryClient();
-  const { data: user, isLoading: loading } = useCurrentUser();
+  const { data: user, isLoading: loading, refetch: refetchUser } = useCurrentUser();
 
   const login = async (loginIdentifier, password) => {
     const isEmail = loginIdentifier.includes('@');
@@ -29,16 +30,28 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (username, email, fullName, password, avatarFile) => {
-    const formData = new FormData();
-    formData.append('username', username);
-    formData.append('email', email);
-    formData.append('fullName', fullName);
-    formData.append('password', password);
+    let avatarKey = undefined;
     if (avatarFile) {
-      formData.append('avatar', avatarFile);
+      const presignRes = await api.post('/auth/presign', {
+        fileName: avatarFile.name,
+        contentType: avatarFile.type,
+      });
+      const { url, key } = presignRes.data.data;
+
+      await axios.put(url, avatarFile, {
+        headers: {
+          'Content-Type': avatarFile.type,
+        },
+      });
+      avatarKey = key;
     }
-    const res = await api.post('/auth/register', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+
+    const res = await api.post('/auth/register', {
+      username,
+      email,
+      fullName,
+      password,
+      avatarKey,
     });
     return res.data;
   };
@@ -64,6 +77,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        refetchUser,
       }}
     >
       {children}

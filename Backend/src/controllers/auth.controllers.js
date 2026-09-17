@@ -12,11 +12,11 @@ import jwt from "jsonwebtoken";
 import { createDownloadURL, createUploadURL } from "../services/s3.service.js";
 import logger from "../logger/logger.js";
 import path from "path";
-import { error } from "console";
 
 // ALLOWED IMG FORMAT
 const ALLOWED_FORMATS = {
   "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
 };
@@ -43,7 +43,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, username, fullName, password } = req.body;
+  const { email, username, fullName, password, avatarKey } = req.body;
 
   const existingUser = await User.findOne({
     $or: [{ username }, { email }],
@@ -53,20 +53,17 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists", []);
   }
 
-  // Handle optional avatar upload
-  const avatarLocalPath = req.file?.path;
-  const avatarUrl = avatarLocalPath
-    ? `${process.env.SERVER_URL}/images/${req.file.filename}`
-    : undefined;
-
   const user = await User.create({
     email,
     password,
     username,
     fullName,
     isEmailVerified: false,
-    ...(avatarUrl && {
-      avatar: { url: avatarUrl, localPath: avatarLocalPath },
+    ...(avatarKey && {
+      avatar: {
+        key: avatarKey,
+        url: "https://placehold.co/200x200",
+      },
     }),
   });
 
@@ -92,10 +89,16 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
-  );
+  ).lean();
 
   if (!createdUser) {
     throw new ApiError(500, "something went wrong while registering the user");
+  }
+
+  if (createdUser?.avatar?.key) {
+    createdUser.avatar.url = await createDownloadURL({
+      key: createdUser.avatar.key,
+    });
   }
 
   return res
@@ -193,9 +196,15 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = req.user?.toObject ? req.user.toObject() : { ...req.user };
+  if (user?.avatar?.key) {
+    user.avatar.url = await createDownloadURL({
+      key: user.avatar.key,
+    });
+  }
   return res
     .status(200)
-    .json(new ApiResponse(200, req.user, "Current user fetched Successfully"));
+    .json(new ApiResponse(200, user, "Current user fetched Successfully"));
 });
 
 const verifyEmail = asyncHandler(async (req, res) => {
@@ -405,26 +414,33 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
-  console.log("Triggered update avatar after key generation from aws.");
-  const user = req.user.id;
+  const userId = req.user?._id || req.user?.id;
   const { key } = req.body;
 
   if (!key) {
-    throw new ApiError(404, "Image key from aws is missing.");
+    throw new ApiError(400, "Image key from aws is missing.");
   }
 
   const updatedAvatar = await User.findByIdAndUpdate(
-    user,
+    userId,
     {
       $set: {
         "avatar.key": key,
       },
     },
     { new: true },
-  );
+  )
+    .select("-password -refreshToken -emailVerificationToken -emailVerificationExpiry")
+    .lean();
 
-  if (!updateAvatar) {
+  if (!updatedAvatar) {
     throw new ApiError(404, "Error saving/updating the img key");
+  }
+
+  if (updatedAvatar?.avatar?.key) {
+    updatedAvatar.avatar.url = await createDownloadURL({
+      key: updatedAvatar.avatar.key,
+    });
   }
 
   return res
@@ -442,18 +458,12 @@ const generateUploadURL = asyncHandler(async (req, res) => {
   if (!ALLOWED_FORMATS[contentType]) {
     throw new ApiError(400, "Please provide a valid format - png/jpg/webp");
   }
-  console.log("Generating the url...");
 
   const fileId = crypto.randomUUID();
-
-  const key = `user/${req.user.id}/profile/${fileId}${ALLOWED_FORMATS[contentType]}`;
-
-  // logger.info("key:")
-  console.log(key);
+  const userId = req.user?._id || req.user?.id || "temp";
+  const key = `user/${userId}/profile/${fileId}${ALLOWED_FORMATS[contentType]}`;
 
   const uploadUrl = await createUploadURL({ key, contentType });
-  // logger.info("Url generated:")
-  console.log(uploadUrl);
 
   if (!uploadUrl) {
     logger.error("Error creating upload url");
@@ -472,13 +482,14 @@ const generateUploadURL = asyncHandler(async (req, res) => {
 });
 
 const getAvatarUrl = asyncHandler(async (req, res) => {
-  const user = User.findById(req.user.id);
+  const userId = req.user?._id || req.user?.id;
+  const user = await User.findById(userId);
 
   if (!user?.avatar?.key) {
     return res.status(200).json(new ApiResponse(200, null, "Avatar not found"));
   }
 
-  const url = createDownloadURL({
+  const url = await createDownloadURL({
     key: user.avatar.key,
   });
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { useUpdateTask, useDeleteTask } from '../hooks/useTasks';
 import { useSubtasks, useAddSubtask, useToggleSubtask, useDeleteSubtask } from '../hooks/useSubtasks';
-import { CheckSquare, Square, Plus, Trash2, Paperclip } from 'lucide-react';
+import { CheckSquare, Square, Plus, Trash2, Paperclip, X } from 'lucide-react';
 
 const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTaskUpdated, onTaskDeleted }) => {
   const [status, setStatus] = useState(task?.status || 'todo');
@@ -33,17 +33,29 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
 
   const handleStatusChange = (newStatus) => {
     setStatus(newStatus); // instant local feedback
+    setError('');
     updateTask.mutate(
       { taskId: task._id, data: { status: newStatus } },
-      { onError: () => setStatus(task.status || 'todo') }
+      {
+        onError: (err) => {
+          setStatus(task.status || 'todo');
+          setError(err.response?.data?.message || 'Failed to update status');
+        },
+      }
     );
   };
 
   const handleAssigneeChange = (newAssignee) => {
     setAssignedTo(newAssignee);
+    setError('');
     updateTask.mutate(
       { taskId: task._id, data: { assignedTo: newAssignee || null } },
-      { onError: () => setAssignedTo(task.assignedTo?._id || '') }
+      {
+        onError: (err) => {
+          setAssignedTo(task.assignedTo?._id || '');
+          setError(err.response?.data?.message || 'Failed to update assignee');
+        },
+      }
     );
   };
 
@@ -93,7 +105,18 @@ const TaskDetailModal = ({ isOpen, onClose, task, projectId, members = [], onTas
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={task.title} maxWidth="640px">
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && (
+        <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Status & Assignee Controls */}

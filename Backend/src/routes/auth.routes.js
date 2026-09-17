@@ -22,21 +22,23 @@ import {
   userRegisterValidator,
   userResetForgotPasswordValidator,
 } from "../validators/index.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyJWT, optionalVerifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-// Unsecure Routes --> These doesn't require JWT
+// Unsecure / Optional JWT Routes
 router
   .route("/register")
   .post(
-    upload.single("avatar"),
     [...userRegisterValidator(), validate],
     registerUser,
   );
 
 router.route("/login").post([...userLoginValidator(), validate], loginUser);
+
+// Presign upload URL (works for both unauthenticated registration and logged-in avatar updates)
+router.route("/presign").post(optionalVerifyJWT, generateUploadURL);
 
 // here /verify-email/:verificationToken --> the "verificationToken" is the one we get form the "req.param"s in controller.
 router.route("/verify-email/:verificationToken").get(verifyEmail);
@@ -70,8 +72,6 @@ router
 
 // Update avatar (secured)
 router.route("/update-avatar").patch(verifyJWT, updateAvatar);
-
-router.route("/presign").post(verifyJWT, generateUploadURL);
 
 router.route("/avatar").get(verifyJWT, getAvatarUrl);
 

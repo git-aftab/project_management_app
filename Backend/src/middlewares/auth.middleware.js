@@ -31,6 +31,29 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   }
 });
 
+export const optionalVerifyJWT = asyncHandler(async (req, res, next) => {
+  const token =
+    req.cookies?.accessToken ||
+    req.header("Authorization")?.replace(/^Bearer\s+/, "").trim();
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const user = await User.findById(decodedToken?._id).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
+    );
+    if (user) {
+      req.user = user;
+    }
+  } catch (error) {
+    // Ignore invalid token for optional auth
+  }
+  next();
+});
+
 export const validateProjectPermission = (roles = []) => {
   return asyncHandler(async (req, res, next) => {
     const { projectId } = req.params;

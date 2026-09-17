@@ -9,10 +9,11 @@ import {
   KeyRound,
   CheckCircle,
   Camera,
+  X,
 } from "lucide-react";
 
 const ProfilePage = () => {
-  const { user, fetchCurrentUser } = useAuth();
+  const { user, refetchUser } = useAuth();
 
   // Avatar state
   const [avatarFile, setAvatarFile] = useState(null);
@@ -62,18 +63,22 @@ const ProfilePage = () => {
     if (!avatarFile) return;
     try {
       setAvatarLoading(true);
+      setAvatarError('');
 
       const { url, key } = await generateAvatarUrl(avatarFile);
-      console.log("Upload Url: ", url);
-      console.log("Upload Key: ", key);
-      console.log(" sending avatarFile to upload img: ", avatarFile);
 
       await UploadImg({ url, file: avatarFile });
 
-      console.log("Setting up the key in the DB");
-      await api.patch("/auth/update-avatar", { key });
+      await api.patch('/auth/update-avatar', { key });
+
+      // Refresh user data so navbar/avatar updates
+      await refetchUser();
+
+      setAvatarMsg('Avatar updated successfully!');
+      setAvatarFile(null);
+      setAvatarPreview(null);
     } catch (err) {
-      setAvatarError(err.response?.data?.message || "Failed to update avatar");
+      setAvatarError(err.response?.data?.message || 'Failed to update avatar');
     } finally {
       setAvatarLoading(false);
     }
@@ -124,8 +129,7 @@ const ProfilePage = () => {
   if (!user) return null;
 
   const displayAvatar = avatarPreview || user.avatar?.url;
-  const avatarIsPlaceholder =
-    !user.avatar?.url || user.avatar.url.includes("placehold.co");
+  const avatarIsPlaceholder = !avatarPreview && (!user.avatar?.url || user.avatar.url.includes('placehold.co'));
 
   return (
     <div className="page-container">
@@ -174,7 +178,7 @@ const ProfilePage = () => {
               >
                 {displayAvatar && !avatarIsPlaceholder ? (
                   <img
-                    src={user?.avatar?.url}
+                    src={displayAvatar}
                     alt="avatar"
                     style={{
                       width: "100%",
@@ -434,7 +438,16 @@ const ProfilePage = () => {
           </h3>
 
           {passwordError && (
-            <div className="alert alert-error">{passwordError}</div>
+            <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>{passwordError}</span>
+              <button
+                type="button"
+                onClick={() => setPasswordError('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
           )}
           {passwordSuccess && (
             <div className="alert alert-success">{passwordSuccess}</div>

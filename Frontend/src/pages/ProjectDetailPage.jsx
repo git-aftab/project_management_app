@@ -17,7 +17,8 @@ import {
   Edit,
   UserPlus,
   ArrowLeft,
-  Calendar
+  Calendar,
+  X,
 } from 'lucide-react';
 
 const ProjectDetailPage = () => {
@@ -53,18 +54,22 @@ const ProjectDetailPage = () => {
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskStatus, setNewTaskStatus] = useState('todo');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [taskModalError, setTaskModalError] = useState('');
 
   // Member form
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [memberIdentifier, setMemberIdentifier] = useState('');
   const [memberRole, setMemberRole] = useState('member');
+  const [memberModalError, setMemberModalError] = useState('');
 
   // Note form
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [noteModalError, setNoteModalError] = useState('');
 
   const [pageError, setPageError] = useState('');
+  const [dismissedProjectError, setDismissedProjectError] = useState(false);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -76,7 +81,15 @@ const ProjectDetailPage = () => {
     const task = tasks.find((t) => t._id === taskId);
     if (!task || task.status === newStatus) return;
     // optimistic update is handled inside useUpdateTask
-    updateTask.mutate({ taskId, data: { status: newStatus } });
+    updateTask.mutate(
+      { taskId, data: { status: newStatus } },
+      {
+        onError: (err) => {
+          setPageError(err.response?.data?.message || 'Failed to update task status');
+          setDismissedProjectError(false);
+        },
+      }
+    );
   };
 
   const handleCreateTask = (e) => {
@@ -91,8 +104,9 @@ const ProjectDetailPage = () => {
           setNewTaskDesc('');
           setNewTaskStatus('todo');
           setNewTaskAssignee('');
+          setTaskModalError('');
         },
-        onError: (err) => setPageError(err.response?.data?.message || 'Failed to create task'),
+        onError: (err) => setTaskModalError(err.response?.data?.message || 'Failed to create task'),
       }
     );
   };
@@ -107,8 +121,9 @@ const ProjectDetailPage = () => {
           setIsAddMemberOpen(false);
           setMemberIdentifier('');
           setMemberRole('member');
+          setMemberModalError('');
         },
-        onError: (err) => setPageError(err.response?.data?.message || 'Failed to add member'),
+        onError: (err) => setMemberModalError(err.response?.data?.message || 'Failed to add member'),
       }
     );
   };
@@ -116,14 +131,22 @@ const ProjectDetailPage = () => {
   const handleRemoveMember = (userId) => {
     if (!window.confirm('Remove this member from the project?')) return;
     removeMember.mutate(userId, {
-      onError: (err) => setPageError(err.response?.data?.message || 'Failed to remove member'),
+      onError: (err) => {
+        setPageError(err.response?.data?.message || 'Failed to remove member');
+        setDismissedProjectError(false);
+      },
     });
   };
 
   const handleUpdateRole = (userId, newRole) => {
     updateMemberRole.mutate(
       { userId, newRole: newRole.toLowerCase() },
-      { onError: (err) => setPageError(err.response?.data?.message || 'Failed to update role') }
+      {
+        onError: (err) => {
+          setPageError(err.response?.data?.message || 'Failed to update role');
+          setDismissedProjectError(false);
+        },
+      }
     );
   };
 
@@ -137,8 +160,9 @@ const ProjectDetailPage = () => {
           setIsCreateNoteOpen(false);
           setNewNoteTitle('');
           setNewNoteContent('');
+          setNoteModalError('');
         },
-        onError: (err) => setPageError(err.response?.data?.message || 'Failed to create note'),
+        onError: (err) => setNoteModalError(err.response?.data?.message || 'Failed to create note'),
       }
     );
   };
@@ -146,7 +170,10 @@ const ProjectDetailPage = () => {
   const handleDeleteNote = (noteId) => {
     if (!window.confirm('Are you sure you want to delete this note?')) return;
     deleteNote.mutate(noteId, {
-      onError: (err) => setPageError(err.response?.data?.message || 'Failed to delete note'),
+      onError: (err) => {
+        setPageError(err.response?.data?.message || 'Failed to delete note');
+        setDismissedProjectError(false);
+      },
     });
   };
 
@@ -154,7 +181,10 @@ const ProjectDetailPage = () => {
     if (!window.confirm('Are you sure you want to delete this entire project and all associated tasks/notes?')) return;
     deleteProject.mutate(undefined, {
       onSuccess: () => navigate('/'),
-      onError: (err) => setPageError(err.response?.data?.message || 'Failed to delete project'),
+      onError: (err) => {
+        setPageError(err.response?.data?.message || 'Failed to delete project');
+        setDismissedProjectError(false);
+      },
     });
   };
 
@@ -168,7 +198,7 @@ const ProjectDetailPage = () => {
     );
   }
 
-  const error = pageError || projectError?.response?.data?.message || '';
+  const error = pageError || (!dismissedProjectError ? projectError?.response?.data?.message : '') || '';
 
   return (
     <div className="page-container">
@@ -177,7 +207,21 @@ const ProjectDetailPage = () => {
         <ArrowLeft size={16} /> Back to Projects
       </button>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && (
+        <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setPageError('');
+              setDismissedProjectError(true);
+            }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {project && (
         <>
@@ -483,8 +527,20 @@ const ProjectDetailPage = () => {
       )}
 
       {/* CREATE TASK MODAL */}
-      <Modal isOpen={isCreateTaskOpen} onClose={() => setIsCreateTaskOpen(false)} title="Create New Task">
+      <Modal isOpen={isCreateTaskOpen} onClose={() => { setIsCreateTaskOpen(false); setTaskModalError(''); }} title="Create New Task">
         <form onSubmit={handleCreateTask}>
+          {taskModalError && (
+            <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <span>{taskModalError}</span>
+              <button
+                type="button"
+                onClick={() => setTaskModalError('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Task Title</label>
             <input
@@ -540,7 +596,7 @@ const ProjectDetailPage = () => {
           </div>
 
           <div className="modal-footer" style={{ padding: 0, paddingTop: '1rem', border: 'none' }}>
-            <button type="button" onClick={() => setIsCreateTaskOpen(false)} className="btn btn-secondary">
+            <button type="button" onClick={() => { setIsCreateTaskOpen(false); setTaskModalError(''); }} className="btn btn-secondary">
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={createTask.isPending}>
@@ -551,8 +607,20 @@ const ProjectDetailPage = () => {
       </Modal>
 
       {/* ADD MEMBER MODAL */}
-      <Modal isOpen={isAddMemberOpen} onClose={() => setIsAddMemberOpen(false)} title="Add Team Member">
+      <Modal isOpen={isAddMemberOpen} onClose={() => { setIsAddMemberOpen(false); setMemberModalError(''); }} title="Add Team Member">
         <form onSubmit={handleAddMember}>
+          {memberModalError && (
+            <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <span>{memberModalError}</span>
+              <button
+                type="button"
+                onClick={() => setMemberModalError('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Username or Email</label>
             <input
@@ -579,7 +647,7 @@ const ProjectDetailPage = () => {
           </div>
 
           <div className="modal-footer" style={{ padding: 0, paddingTop: '1rem', border: 'none' }}>
-            <button type="button" onClick={() => setIsAddMemberOpen(false)} className="btn btn-secondary">
+            <button type="button" onClick={() => { setIsAddMemberOpen(false); setMemberModalError(''); }} className="btn btn-secondary">
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={addMember.isPending}>
@@ -590,8 +658,20 @@ const ProjectDetailPage = () => {
       </Modal>
 
       {/* CREATE NOTE MODAL */}
-      <Modal isOpen={isCreateNoteOpen} onClose={() => setIsCreateNoteOpen(false)} title="Create Project Note">
+      <Modal isOpen={isCreateNoteOpen} onClose={() => { setIsCreateNoteOpen(false); setNoteModalError(''); }} title="Create Project Note">
         <form onSubmit={handleCreateNote}>
+          {noteModalError && (
+            <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <span>{noteModalError}</span>
+              <button
+                type="button"
+                onClick={() => setNoteModalError('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 0 0 0.5rem', display: 'flex' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Note Title</label>
             <input
@@ -617,7 +697,7 @@ const ProjectDetailPage = () => {
           </div>
 
           <div className="modal-footer" style={{ padding: 0, paddingTop: '1rem', border: 'none' }}>
-            <button type="button" onClick={() => setIsCreateNoteOpen(false)} className="btn btn-secondary">
+            <button type="button" onClick={() => { setIsCreateNoteOpen(false); setNoteModalError(''); }} className="btn btn-secondary">
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={createNote.isPending}>
@@ -626,6 +706,7 @@ const ProjectDetailPage = () => {
           </div>
         </form>
       </Modal>
+
 
       {/* TASK DETAIL DRAWER MODAL */}
       {selectedTask && (
