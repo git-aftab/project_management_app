@@ -28,7 +28,10 @@ export const useAddMember = (projectId) => {
   return useMutation({
     mutationFn: (data) => api.post(`/projects/${projectId}/members`, data),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: membersKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: membersKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -38,7 +41,10 @@ export const useRemoveMember = (projectId) => {
   return useMutation({
     mutationFn: (userId) => api.delete(`/projects/${projectId}/members/${userId}`),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: membersKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: membersKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -49,6 +55,9 @@ export const useUpdateMemberRole = (projectId) => {
     mutationFn: ({ userId, newRole }) =>
       api.put(`/projects/${projectId}/members/${userId}`, { newRole }),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: membersKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: membersKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };

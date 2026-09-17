@@ -28,7 +28,10 @@ export const useCreateTask = (projectId) => {
   return useMutation({
     mutationFn: (data) => api.post(`/tasks/${projectId}`, data),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: tasksKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: tasksKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -52,7 +55,10 @@ export const useUpdateTask = (projectId) => {
       queryClient.setQueryData(tasksKey(projectId), context.previous);
     },
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: tasksKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: tasksKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -62,6 +68,9 @@ export const useDeleteTask = (projectId) => {
   return useMutation({
     mutationFn: (taskId) => api.delete(`/tasks/${projectId}/t/${taskId}`),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: tasksKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: tasksKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };

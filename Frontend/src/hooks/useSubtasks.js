@@ -29,7 +29,10 @@ export const useAddSubtask = (projectId, taskId) => {
     mutationFn: (data) =>
       api.post(`/tasks/${projectId}/t/${taskId}/subtasks`, data),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: subtasksKey(projectId, taskId) }),
+      queryClient.invalidateQueries({
+        queryKey: subtasksKey(projectId, taskId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -52,7 +55,10 @@ export const useToggleSubtask = (projectId, taskId) => {
       queryClient.setQueryData(subtasksKey(projectId, taskId), context.previous);
     },
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: subtasksKey(projectId, taskId) }),
+      queryClient.invalidateQueries({
+        queryKey: subtasksKey(projectId, taskId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -63,6 +69,9 @@ export const useDeleteSubtask = (projectId, taskId) => {
     mutationFn: (subTaskId) =>
       api.delete(`/tasks/${projectId}/st/${subTaskId}`),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: subtasksKey(projectId, taskId) }),
+      queryClient.invalidateQueries({
+        queryKey: subtasksKey(projectId, taskId),
+        refetchType: 'all',
+      }),
   });
 };

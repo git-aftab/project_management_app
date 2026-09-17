@@ -42,7 +42,11 @@ export const useCreateProject = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data) => api.post('/projects', data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey() }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: projectsKey(),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -51,6 +55,10 @@ export const useDeleteProject = (projectId) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.delete(`/projects/${projectId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey() }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: projectsKey(),
+        refetchType: 'all',
+      }),
   });
 };

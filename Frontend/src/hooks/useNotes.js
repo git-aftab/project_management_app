@@ -28,7 +28,10 @@ export const useCreateNote = (projectId) => {
   return useMutation({
     mutationFn: (data) => api.post(`/notes/${projectId}`, data),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: notesKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: notesKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };
 
@@ -38,6 +41,9 @@ export const useDeleteNote = (projectId) => {
   return useMutation({
     mutationFn: (noteId) => api.delete(`/notes/${projectId}/n/${noteId}`),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: notesKey(projectId) }),
+      queryClient.invalidateQueries({
+        queryKey: notesKey(projectId),
+        refetchType: 'all',
+      }),
   });
 };
