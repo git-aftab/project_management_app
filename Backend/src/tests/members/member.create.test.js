@@ -8,7 +8,7 @@ import { ProjectMember } from "../../models/projectmember.models.js";
 import { deleteCache } from "../../utils/cache.js";
 
 async function createTestUser() {
-  const user = User.create({
+  const user = await User.create({
     username: "testUser",
     email: "test@example.com",
     fullName: "Test User",
