@@ -1,0 +1,207 @@
+
+name: PMS CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pms-production
+  cancel-in-progress: false
+
+jobs:
+
+  # -----------------------------
+  # CI: Continuous Integration
+  # -----------------------------
+
+  test:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: Backend
+        run: npm ci
+
+      - name: Run Tests
+        working-directory: Backend
+        run: npm run test:run
+        env:
+          NODE_ENV: test
+          REDIS_URL: redis://127.0.0.1:6379
+
+  # -----------------------------
+  # CD: Continuous Deployment
+  # -----------------------------
+
+  deploy:
+    name: Deploy to Northflank
+    needs: test
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Northflank Build
+        id: build
+        env:
+          NORTHFLANK_API_TOKEN: ${{ secrets.NORTHFLANK_API_TOKEN }}
+          PROJECT_ID: ${{ secrets.NORTHFLANK_PROJECT_ID }}
+          SERVICE_ID: ${{ secrets.NORTHFLANK_SERVICE_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          response=$(curl --fail-with-body --silent --show-error \
+            --request POST \
+            --url "https://api.northflank.com/v1/projects/${PROJECT_ID}/services/${SERVICE_ID}/build" \
+            --header "Authorization: Bearer ${NORTHFLANK_API_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "{\"sha\":\"${COMMIT_SHA}\"}")
+
+          echo "$response"
+
+          build_id=$(echo "$response" | jq -r '.data.id')
+
+          if [ -z "$build_id" ] || [ "$build_id" = "null" ]; then
+            echo "Failed to obtain Northflank build ID"
+            exit 1
+          fi
+
+          echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Northflank Build
+        env:
+          NORTHFLANK_API_TOKEN: ${{ secrets.NORTHFLANK_API_TOKEN }}
+          PROJECT_ID: ${{ secrets.NORTHFLANK_PROJECT_ID }}
+          SERVICE_ID: ${{ secrets.NORTHFLANK_SERVICE_ID }}
+          BUILD_ID: ${{ steps.build.outputs.build_id }}
+        run: |
+          for attempt in {1..60}; do
+
+            response=$(curl --fail-with-body --silent --show-error \
+              --url "https://api.northflank.com/v1/projects/${PROJECT_ID}/services/${SERVICE_ID}/build/${BUILD_ID}" \
+              --header "Authorization: Bearer ${NORTHFLANK_API_TOKEN}")
+
+            status=$(echo "$response" | jq -r '.data.status')
+
+            echo "Build status: $status"
+
+            case "$status" in
+              SUCCESS)
+                echo "Northflank build succeeded!"
+                exit 0
+                ;;
+              FAILURE|ABORTED|SUBMISSION_FAILURE|UNSCHEDULABLE|CRASHED)
+                echo "Northflank build failed!"
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          echo "Build timed out"
+          exit 1
+
+      - name: Verify Production Health
+        env:
+          HEALTH_URL: ${{ vars.PMS_HEALTH_URL }}
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent "$HEALTH_URL"; then
+              echo "PMS is responding successfully!"
+              exit 0
+            fi
+
+            echo "Waiting for deployment..."
+            sleep 10
+          done
+
+          echo "Production health check failed"
+          exit 1
+
+
+
+
+
+# name: PMS Backend CI
+
+# on:
+#   push:
+#     branches: [main]
+
+#   Pull_request:
+#     branches: [main]
+
+# jobs:
+#   backend-tests:
+#     name: Backend tests
+#     runs-on: ubuntu-latest
+
+#     services:
+#       mongodb:
+#         image: mongo:7
+#         ports:
+#           -27017:27017
+        
+#       redis:
+#         image: redis:7
+#         ports:
+#           -6379:6379
+#         options: >-
+#           --health-cmd "redis-cli ping"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+      
+#     setps:
+#       - name: Checkout Repository
+#         uses: actions/checkout/@v4
+
+#       - name: setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: 22
+#           cache: npm
+#           cache-dependency-path: Backend/package-lock.json
+
+#       - name: Install Dependencies
+#         working-directory: Backend
+#         run: npm ci
+
+#       - name: Run Tests
+#         working-directory: Backend
+#         run: npm run test:run
+#         env:
+#           NODE_ENV: test
+#           REDIS_URL: redis://127.0.0.1:6379
